@@ -5,14 +5,16 @@ using UnityEngine;
 using Mirror;
 using Random = UnityEngine.Random;
 
-public class GlassShard : NetworkBehaviour
+public class GlassShard : NetworkBehaviour, IServerSpawn
 {
-	public Sprite[] glassSprites;
-
-	[SyncVar(hook = nameof(SpriteChange))]
-	public int spriteIndex;
+	[SyncVar(hook = nameof(SyncSpriteRotation))]
+	private Quaternion spriteRotation;
 
 	private SpriteRenderer spriteRenderer;
+	private CustomNetTransform netTransform;
+	private SpriteHandler spriteHandler;
+
+	#region Lifecycle
 
 	void Awake()
 	{
@@ -22,51 +24,41 @@ public class GlassShard : NetworkBehaviour
 	private void EnsureInit()
 	{
 		spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+		netTransform = GetComponent<CustomNetTransform>();
+		spriteHandler = GetComponentInChildren<SpriteHandler>();
 	}
 
-	public override void OnStartClient()
+	public void OnSpawnServer(SpawnInfo info)
 	{
 		EnsureInit();
-		base.OnStartClient();
-		SpriteChange(spriteIndex, spriteIndex);
+		SetSpriteAndScatter(Random.Range(0, spriteHandler.CatalogueCount));
 	}
 
+	#endregion Lifecycle
+
 	[Server]
-	public void SetSpriteAndScatter(int index){
-		//Set the syncvar and update to all clientS:
-		SpriteChange(spriteIndex, index);
-
-		var netTransform = GetComponent<CustomNetTransform>();
-
+	public void SetSpriteAndScatter(int index)
+	{
+		spriteHandler.ChangeSprite(index);
 		netTransform?.SetPosition(netTransform.ServerState.WorldPosition + new Vector3(Random.Range(-0.4f, 0.4f), Random.Range(-0.4f, 0.4f)));
+
+		//Add a bit of rotation variance to the sprite obj:
+		var axis = new Vector3(0, 0, 1);
+		spriteRotation = Quaternion.AngleAxis(Random.Range(-180f, 180f), axis);
 	}
 
-	[Server]
-	public void SetRandomSprite()
-	{
-		SpriteChange(spriteIndex, Random.Range(0, glassSprites.Length));
-	}
-
-	public void SpriteChange(int oldValue, int index)
+	private void SyncSpriteRotation(Quaternion oldValue, Quaternion newValue)
 	{
 		EnsureInit();
-		spriteIndex = index;
-		spriteRenderer.sprite = glassSprites[spriteIndex];
+		spriteRotation = newValue;
 
-
-
-		//Scatter them around (just for visual candy, no need to network sync as they are on the same grid co-ord anyway):
-		// spriteRenderer.transform.localPosition = new Vector3(
-		// 	Random.Range(-0.4f, 0.4f), Random.Range(-0.4f, 0.4f), 0f);
-
-		//Also add a bit of rotation variance to the sprite obj:
-		var axis = new Vector3(0,0,1);
-		spriteRenderer.transform.localRotation = Quaternion.AngleAxis(Random.Range(-180f, 180f), axis);
-
-
+		if (spriteRenderer != null)
+		{
+			spriteRenderer.transform.localRotation = spriteRotation;
+		}
 	}
 
-	//Serverside only
+	// Serverside only - play glass crunching sound when stepped on
 	public void OnTriggerEnter2D(Collider2D coll)
 	{
 		if (!isServer)

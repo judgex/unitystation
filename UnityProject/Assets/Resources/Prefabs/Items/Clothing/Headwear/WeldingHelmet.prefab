@@ -9,15 +9,26 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1778182844913246397, guid: a7a048f6c330048e9a2358fb6f71d385,
         type: 3}
+      propertyPath: initialTraits.Array.size
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1778182844913246397, guid: a7a048f6c330048e9a2358fb6f71d385,
+        type: 3}
       propertyPath: initialName
       value: welding helmet
       objectReference: {fileID: 0}
     - target: {fileID: 1778182844913246397, guid: a7a048f6c330048e9a2358fb6f71d385,
         type: 3}
       propertyPath: initialDescription
-      value: A head-mounted face cover designed to protect the wearer completely from
-        space-arc eye.
+      value: A head-mounted face cover designed to protect the wearer completely
+        from space-arc eye.
       objectReference: {fileID: 0}
+    - target: {fileID: 1778182844913246397, guid: a7a048f6c330048e9a2358fb6f71d385,
+        type: 3}
+      propertyPath: initialTraits.Array.data[1]
+      value: 
+      objectReference: {fileID: 11400000, guid: ba923436cf6803a4f99a5ed73f885d61,
+        type: 2}
     - target: {fileID: 2067487341669760131, guid: a7a048f6c330048e9a2358fb6f71d385,
         type: 3}
       propertyPath: m_Sprite
@@ -134,6 +145,11 @@ PrefabInstance:
       propertyPath: Armor.Acid
       value: 50
       objectReference: {fileID: 0}
+    - target: {fileID: 2727688219082199354, guid: a7a048f6c330048e9a2358fb6f71d385,
+        type: 3}
+      propertyPath: bodyPartsCovered
+      value: 14
+      objectReference: {fileID: 0}
     - target: {fileID: 5061482891772091482, guid: a7a048f6c330048e9a2358fb6f71d385,
         type: 3}
       propertyPath: clothData
@@ -145,5 +161,11 @@ PrefabInstance:
       propertyPath: hideClothingFlags
       value: 208
       objectReference: {fileID: 0}
+    - target: {fileID: 5406248525527790680, guid: a7a048f6c330048e9a2358fb6f71d385,
+        type: 3}
+      propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: f54389019059b69498d228cf92bebf89,
+        type: 2}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a7a048f6c330048e9a2358fb6f71d385, type: 3}

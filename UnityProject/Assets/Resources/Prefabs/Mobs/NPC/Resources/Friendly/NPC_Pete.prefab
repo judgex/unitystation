@@ -55,6 +55,17 @@ MonoBehaviour:
   isBleeding: 0
   livingHealthBehaviour: {fileID: 0}
   Severity: 0
+  armor:
+    Melee: 0
+    Bullet: 0
+    Laser: 0
+    Energy: 0
+    Bomb: 0
+    Rad: 0
+    Fire: 0
+    Acid: 0
+    Magic: 0
+    Bio: 0
 --- !u!1 &1513511744097802
 GameObject:
   m_ObjectHideFlags: 0
@@ -106,6 +117,7 @@ GameObject:
   - component: {fileID: 114416966196078904}
   - component: {fileID: 114015240692607784}
   - component: {fileID: 1154965250116865479}
+  - component: {fileID: -2109947755428402243}
   m_Layer: 12
   m_Name: NPC_Pete
   m_TagString: Untagged
@@ -181,8 +193,12 @@ MonoBehaviour:
   - {fileID: 114588246911682174}
   allowKnifeHarvest: 1
   butcherResults:
-  - {fileID: 6532193109441330816, guid: 08f2ed80656ab8548b303e79671a18e8, type: 3}
-  - {fileID: 6532193109441330816, guid: 08f2ed80656ab8548b303e79671a18e8, type: 3}
+  - {fileID: 2786145059108661523, guid: 9914f83c172606747877a09872724398, type: 3}
+  - {fileID: 2786145059108661523, guid: 9914f83c172606747877a09872724398, type: 3}
+  - {fileID: 2786145059108661523, guid: 9914f83c172606747877a09872724398, type: 3}
+  - {fileID: 2786145059108661523, guid: 9914f83c172606747877a09872724398, type: 3}
+  RTT: 0
+  RadiationStacks: 0
   aliveSprite: {fileID: 21300002, guid: cf8f9f59eeb8cbe4fa338d33d4ddc1d3, type: 3}
   deadSprite: {fileID: 21300000, guid: e6d01e8edda8cfe4eb9fadd584a00685, type: 3}
   deadState: 0
@@ -244,6 +260,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  snapToGridOnStart: 1
   IsFixedMatrix: 0
 --- !u!114 &114728033721696086
 MonoBehaviour:
@@ -271,6 +288,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f68d36ed5e334f99b82dc3801757e89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isMeleeable: 1
   butcherTime: 2
   butcherSound: BladeSlice
 --- !u!114 &114416966196078904
@@ -299,6 +317,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDirty: 0
   sceneId: 0
   serverOnly: 0
   m_AssetId: 
@@ -321,6 +340,18 @@ MonoBehaviour:
   rightSprite: {fileID: 21300004, guid: cf8f9f59eeb8cbe4fa338d33d4ddc1d3, type: 3}
   downSprite: {fileID: 21300000, guid: cf8f9f59eeb8cbe4fa338d33d4ddc1d3, type: 3}
   leftSprite: {fileID: 21300006, guid: cf8f9f59eeb8cbe4fa338d33d4ddc1d3, type: 3}
+--- !u!114 &-2109947755428402243
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1722833055556988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62cc3ef7cd9082443aaf3c255851d15a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1887464382434718
 GameObject:
   m_ObjectHideFlags: 0
@@ -376,6 +407,17 @@ MonoBehaviour:
   isBleeding: 0
   livingHealthBehaviour: {fileID: 0}
   Severity: 0
+  armor:
+    Melee: 0
+    Bullet: 0
+    Laser: 0
+    Energy: 0
+    Bomb: 0
+    Rad: 0
+    Fire: 0
+    Acid: 0
+    Magic: 0
+    Bio: 0
 --- !u!1 &68271780560296883
 GameObject:
   m_ObjectHideFlags: 0
@@ -421,6 +463,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:

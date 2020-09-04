@@ -4,16 +4,16 @@ using System.Linq;
 using UnityEngine;
 using Mirror;
 using AdminTools;
+using InGameEvents;
 
 public class AdminToolRefreshMessage : ServerMessage
 {
-	public override short MessageType => (short) MessageTypes.AdminToolRefreshMessage;
 	public string JsonData;
 	public uint Recipient;
 
-	public override IEnumerator Process()
+	public override void Process()
 	{
-		yield return WaitFor(Recipient);
+		LoadNetworkObject(Recipient);
 		var adminPageData = JsonUtility.FromJson<AdminPageRefreshData>(JsonData);
 
 		var pages = GameObject.FindObjectsOfType<AdminPage>();
@@ -33,6 +33,19 @@ public class AdminToolRefreshMessage : ServerMessage
 		pageData.isSecret = GameManager.Instance.SecretGameMode;
 		pageData.currentGameMode = GameManager.Instance.GetGameModeName(true);
 		pageData.nextGameMode = GameManager.Instance.NextGameMode;
+
+		//Event Manager
+		pageData.randomEventsAllowed = InGameEventsManager.Instance.RandomEventsAllowed;
+
+		//Round Manager
+		pageData.nextMap = SubSceneManager.AdminForcedMainStation;
+		pageData.nextAwaySite = SubSceneManager.AdminForcedAwaySite;
+		pageData.allowLavaLand = SubSceneManager.AdminAllowLavaland;
+		pageData.alertLevel = GameManager.Instance.CentComm.CurrentAlertLevel.ToString();
+
+		//Centcom
+		pageData.blockCall = GameManager.Instance.PrimaryEscapeShuttle.blockCall;
+		pageData.blockRecall = GameManager.Instance.PrimaryEscapeShuttle.blockRecall;
 
 		//Player list info:
 		pageData.players = GetAllPlayerStates(adminID);
@@ -61,7 +74,6 @@ public class AdminToolRefreshMessage : ServerMessage
 			entry.currentJob = player.Job.ToString();
 			entry.accountName = player.Username;
 			entry.ipAddress = player.Connection.address;
-			entry.deviceid = player.DeviceId;
 			if (player.Script != null && player.Script.playerHealth != null)
 			{
 				entry.isAlive = player.Script.playerHealth.ConsciousState != ConsciousState.DEAD;

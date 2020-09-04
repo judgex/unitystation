@@ -28,17 +28,17 @@ namespace Unitystation.Options
         }
         void OnEnable()
         {
-            SceneManager.sceneLoaded += OnSceneLoaded;
+            SceneManager.activeSceneChanged += OnSceneLoaded;
         }
 
         void OnDisable()
         {
-            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.activeSceneChanged -= OnSceneLoaded;
         }
 
-        void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        void OnSceneLoaded(Scene oldScene, Scene newScene)
         {
-            DetermineActiveState(scene);
+            DetermineActiveState(newScene);
         }
 
         /// <summary>
@@ -75,5 +75,17 @@ namespace Unitystation.Options
             OptionsMenu.Instance.Open();
         }
 
+        public void OpenPlayerList()
+        {
+	        if (!UIManager.Instance.lobbyUIPlayerListController.gameObject.activeSelf)
+	        {
+		        UIManager.Instance.lobbyUIPlayerListController.GenerateList();
+		        UIManager.Instance.lobbyUIPlayerListController.gameObject.SetActive(true);
+	        }
+	        else
+	        {
+		        UIManager.Instance.lobbyUIPlayerListController.gameObject.SetActive(false);
+	        }
+        }
     }
 }

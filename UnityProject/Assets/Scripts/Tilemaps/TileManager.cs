@@ -16,7 +16,9 @@ public static class TilePaths
 		{TileType.Grill, "Tiles/Objects"}, // TODO remove
 		{TileType.Object, "Tiles/Objects"},
 		{TileType.WindowDamaged, "Tiles/WindowDamage"},
-		{TileType.Effects, "Tiles/Effects"}
+		{TileType.Effects, "Tiles/Effects"},
+		{TileType.UnderFloor, "Tiles/UnderFloors"},
+		{TileType.ElectricalCable, "Tiles/Electrical"}
 	};
 
 	public static string Get(TileType type)
@@ -102,6 +104,7 @@ public class TileManager : MonoBehaviour
 			tilesToLoad += type.layerTiles.Count;
 		}
 
+		int objCounts = 0;
 		foreach (var type in layerTileCollections)
 		{
 			if (!tiles.ContainsKey(type.tileType))
@@ -120,9 +123,26 @@ public class TileManager : MonoBehaviour
 					}
 				}
 
-				if (staggeredload) yield return WaitFor.EndOfFrame;
+				if (staggeredload)
+				{
+					objCounts++;
+					if (objCounts >= 10)
+					{
+						objCounts = 0;
+						yield return WaitFor.EndOfFrame;
+					}
+				}
 			}
-			if (staggeredload) yield return WaitFor.EndOfFrame;
+
+			if (staggeredload)
+			{
+				objCounts++;
+				if (objCounts >= 10)
+				{
+					objCounts = 0;
+					yield return WaitFor.EndOfFrame;
+				}
+			}
 		}
 
 		initialized = true;

@@ -7,6 +7,11 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: -9097270597331898786, guid: 05a135eab68164d34bb02b82fff3cde0,
+        type: 3}
+      propertyPath: bodyPartsCovered
+      value: 10
+      objectReference: {fileID: 0}
     - target: {fileID: 3532393564309681412, guid: 05a135eab68164d34bb02b82fff3cde0,
         type: 3}
       propertyPath: clothData
@@ -18,6 +23,12 @@ PrefabInstance:
       propertyPath: hideClothingFlags
       value: 640
       objectReference: {fileID: 0}
+    - target: {fileID: 4341101185987976454, guid: 05a135eab68164d34bb02b82fff3cde0,
+        type: 3}
+      propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: dc2907769cce94a40a71dbb0fb3cc755,
+        type: 2}
     - target: {fileID: 7557917173024864117, guid: 05a135eab68164d34bb02b82fff3cde0,
         type: 3}
       propertyPath: Resistances.Flammable
@@ -113,6 +124,11 @@ PrefabInstance:
         type: 3}
       propertyPath: canConnectToTank
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8040391005062056419, guid: 05a135eab68164d34bb02b82fff3cde0,
+        type: 3}
+      propertyPath: initialSize
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 05a135eab68164d34bb02b82fff3cde0, type: 3}

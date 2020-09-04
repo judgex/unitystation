@@ -45,5 +45,36 @@ public enum JobType
 	SECURITY_OFFICER = 33,
 	VIROLOGIST = 34,
 	WARDEN = 35,
-	SYNDICATE = 36
+	SYNDICATE = 36,
+	CENTCOMM_OFFICER = 37,
+	CENTCOMM_INTERN = 38,
+	CENTCOMM_COMMANDER = 39,
+	DEATHSQUAD = 40,
+	ERT_COMMANDER = 41,
+	ERT_SECURITY = 42,
+	ERT_MEDIC = 43,
+	ERT_ENGINEER = 44,
+	ERT_CHAPLAIN = 45,
+	ERT_JANITOR = 46,
+	ERT_CLOWN = 47,
+	TRAITOR = 48,
+	CARGONIAN = 49
+}
+
+public static class JobCategories
+{
+	public static readonly List<JobType> CentCommJobs = new List<JobType>()
+	{
+		JobType.CENTCOMM_OFFICER,
+		JobType.CENTCOMM_INTERN,
+		JobType.CENTCOMM_COMMANDER,
+		JobType.DEATHSQUAD,
+		JobType.ERT_COMMANDER,
+		JobType.ERT_SECURITY,
+		JobType.ERT_MEDIC,
+		JobType.ERT_ENGINEER,
+		JobType.ERT_CHAPLAIN,
+		JobType.ERT_JANITOR,
+		JobType.ERT_CLOWN
+	};
 }

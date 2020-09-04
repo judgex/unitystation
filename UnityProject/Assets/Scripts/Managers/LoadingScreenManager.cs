@@ -23,7 +23,7 @@ public class LoadingScreenManager : MonoBehaviour
 		}
 	}
 
-	[SerializeField] private LoadingScreen loadingScreen;
+	[SerializeField] private LoadingScreen loadingScreen = null;
 
 
 	private void OnEnable()
@@ -37,9 +37,14 @@ public class LoadingScreenManager : MonoBehaviour
 		SceneManager.activeSceneChanged -= OnSceneChange;
 	}
 
-	void OnSceneChange(Scene oldScene, Scene newScene)
+	public void CloseLoadingScreen()
 	{
 		loadingScreen.gameObject.SetActive(false);
+	}
+
+	void OnSceneChange(Scene oldScene, Scene newScene)
+	{
+		CloseLoadingScreen();
 	}
 
 	public static void LoadFromLobby(Action endAction)

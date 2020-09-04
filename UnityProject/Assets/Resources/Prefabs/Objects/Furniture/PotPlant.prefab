@@ -45,6 +45,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 0
   m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 4294967295
   m_RendererPriority: 0
   m_Materials:
@@ -97,7 +98,8 @@ GameObject:
   - component: {fileID: 114692596090418488}
   - component: {fileID: 114928563535158040}
   - component: {fileID: 7767792003389877533}
-  m_Layer: 11
+  - component: {fileID: 7194920336470415456}
+  m_Layer: 23
   m_Name: PotPlant
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -177,6 +179,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  snapToGridOnStart: 1
   IsFixedMatrix: 0
 --- !u!114 &114612570594370890
 MonoBehaviour:
@@ -191,6 +194,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spriteMatrixRotationBehavior: 1
+  ignoreExtraRotation: []
 --- !u!114 &114551059333673384
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -203,7 +207,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f68d36ed5e334f99b82dc3801757e89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  butcherKnifeTrait: {fileID: 0}
+  isMeleeable: 1
   butcherTime: 2
   butcherSound: BladeSlice
 --- !u!114 &114692596090418488
@@ -220,6 +224,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  initialIntegrity: 100
+  soundOnHit: 
+  damageDeflection: 0
   Armor:
     Melee: 0
     Bullet: 0
@@ -240,7 +247,6 @@ MonoBehaviour:
     Indestructable: 0
     FreezeProof: 0
   HeatResistance: 100
-  initialIntegrity: 100
 --- !u!114 &114928563535158040
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -253,10 +259,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDirty: 0
+  sceneId: 0
   serverOnly: 0
-  localPlayerAuthority: 0
   m_AssetId: 
-  m_SceneId: 2697619266
 --- !u!114 &7767792003389877533
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -273,6 +279,19 @@ MonoBehaviour:
   syncInterval: 0.1
   initialName: potted plant
   initialDescription: Not edible.
+  willHighlight: 1
   exportCost: 0
   exportName: 
   exportMessage: 
+--- !u!114 &7194920336470415456
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1562085630854840}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62cc3ef7cd9082443aaf3c255851d15a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

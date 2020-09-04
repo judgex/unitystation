@@ -3,30 +3,32 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using DatabaseAPI;
 
 namespace AdminTools
 {
 	public class GUI_AdminTools : MonoBehaviour
 	{
-		[SerializeField] private GameObject retrievingDataScreen;
+		[SerializeField] private GameObject retrievingDataScreen = null;
 
-		[SerializeField] private GameObject backBtn;
-		[SerializeField] private GameObject gameModePage;
-		[SerializeField] private GameObject mainPage;
-		[SerializeField] private GameObject playerManagePage;
-		[SerializeField] private GameObject playerChatPage;
-		[SerializeField] private GameObject playersScrollView;
-		[SerializeField] private GameObject CentCommPage;
-		[SerializeField] private AdminChatButtons adminChatButtons;
+		[SerializeField] private GameObject backBtn = null;
+		[SerializeField] private GameObject gameModePage = null;
+		[SerializeField] private GameObject mainPage = null;
+		[SerializeField] private GameObject playerManagePage = null;
+		[SerializeField] private GameObject playerChatPage = null;
+		[SerializeField] private GameObject playersScrollView = null;
+		[SerializeField] private GameObject centCommPage = null;
+		[SerializeField] private GameObject eventsManagerPage = null;
+		[SerializeField] private GameObject roundManagerPage = null;
 		private PlayerChatPage playerChatPageScript;
 		private PlayerManagePage playerManagePageScript;
 		public KickBanEntryPage kickBanEntryPage;
 		public AreYouSurePage areYouSurePage;
 
-		[SerializeField] private Transform playerListContent;
-		[SerializeField] private GameObject playerEntryPrefab;
+		[SerializeField] private Transform playerListContent = null;
+		[SerializeField] private GameObject playerEntryPrefab = null;
 
-		[SerializeField] private Text windowTitle;
+		[SerializeField] private Text windowTitle = null;
 
 		private List<AdminPlayerEntry> playerEntries = new List<AdminPlayerEntry>();
 		public string SelectedPlayer { get; private set; }
@@ -41,6 +43,11 @@ namespace AdminTools
 		public void ClosePanel()
 		{
 			gameObject.SetActive(false);
+		}
+
+		public void ToggleOnOff()
+		{
+			gameObject.SetActive(!gameObject.activeInHierarchy);
 		}
 
 		public void OnBackButton()
@@ -92,9 +99,26 @@ namespace AdminTools
 		public void ShowCentCommPage()
 		{
 			DisableAllPages();
-			CentCommPage.SetActive(true);
+			centCommPage.SetActive(true);
 			backBtn.SetActive(true);
 			windowTitle.text = "CENTCOMM";
+		}
+
+		public void ShowEventsManagerPage()
+		{
+			DisableAllPages();
+			eventsManagerPage.SetActive(true);
+			eventsManagerPage.GetComponent<EventsManagerPage>().GenerateDropDownOptions();
+			backBtn.SetActive(true);
+			windowTitle.text = "EVENTS MANAGER";
+		}
+
+		public void ShowRoundManagerPage()
+		{
+			DisableAllPages();
+			roundManagerPage.SetActive(true);
+			backBtn.SetActive(true);
+			windowTitle.text = "ROUND MANAGER";
 		}
 
 		void DisableAllPages()
@@ -105,8 +129,10 @@ namespace AdminTools
 			backBtn.SetActive(false);
 			playerManagePage.SetActive(false);
 			playerChatPage.SetActive(false);
-			CentCommPage.SetActive(false);
+			centCommPage.SetActive(false);
+			eventsManagerPage.SetActive(false);
 			playersScrollView.SetActive(false);
+			roundManagerPage.SetActive(false);
 			kickBanEntryPage.gameObject.SetActive(false);
 			areYouSurePage.gameObject.SetActive(false);
 		}

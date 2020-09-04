@@ -8,6 +8,9 @@ using UnityEngine;
 public class Meleeable : MonoBehaviour, IPredictedCheckedInteractable<PositionalHandApply>
 {
 	[SerializeField]
+	private bool isMeleeable = true;
+
+	[SerializeField]
 	private static readonly StandardProgressActionConfig ProgressConfig
 	= new StandardProgressActionConfig(StandardProgressActionType.Restrain);
 
@@ -93,11 +96,6 @@ public class Meleeable : MonoBehaviour, IPredictedCheckedInteractable<Positional
 
 	public void ServerPerformInteraction(PositionalHandApply interaction)
 	{
-
-		var itemAttributes = GetComponent<ItemAttributesV2>();
-
-		var integrity = GetComponent<Integrity>();
-
 		var handObject = interaction.HandObject;
 
 		bool emptyHand = interaction.HandSlot.IsEmpty;
@@ -128,10 +126,20 @@ public class Meleeable : MonoBehaviour, IPredictedCheckedInteractable<Positional
 			//butcher check
 			GameObject victim = interaction.TargetObject;
 			var healthComponent = victim.GetComponent<LivingHealthBehaviour>();
-			if (healthComponent && healthComponent.allowKnifeHarvest && healthComponent.IsDead && Validations.HasItemTrait(handObject, CommonTraits.Instance.Knife) && interaction.Intent == Intent.Harm)
+
+			if (healthComponent
+			    && healthComponent.allowKnifeHarvest
+			    && healthComponent.IsDead
+			    && Validations.HasItemTrait(handObject, CommonTraits.Instance.Knife)
+			    && interaction.Intent == Intent.Harm)
 			{
 				GameObject performer = interaction.Performer;
 
+				var playerMove = victim.GetComponent<PlayerMove>();
+				if (playerMove != null && playerMove.IsBuckled)
+				{
+					return;
+				}
 				void ProgressFinishAction()
 				{
 					LivingHealthBehaviour victimHealth = victim.GetComponent<LivingHealthBehaviour>();
@@ -155,4 +163,8 @@ public class Meleeable : MonoBehaviour, IPredictedCheckedInteractable<Positional
 		}
 	}
 
+	public bool GetMeleeable()
+	{
+		return isMeleeable;
+	}
 }

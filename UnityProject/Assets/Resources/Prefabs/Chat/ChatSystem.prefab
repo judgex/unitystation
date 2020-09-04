@@ -446,6 +446,7 @@ RectTransform:
   m_Children:
   - {fileID: 9002736259520338227}
   - {fileID: 224576715969102918}
+  - {fileID: 2121891336962855131}
   m_Father: {fileID: 8533227384194854147}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -622,7 +623,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &224044340976132104
 RectTransform:
   m_ObjectHideFlags: 0
@@ -984,7 +985,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0}
   m_AnchorMax: {x: 0.5, y: 0}
-  m_AnchoredPosition: {x: -216.73, y: 0}
+  m_AnchoredPosition: {x: -216.73, y: -0.00012207031}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
 --- !u!222 &222333231492848688
@@ -1425,6 +1426,7 @@ GameObject:
   - component: {fileID: 223290611721111060}
   - component: {fileID: 114107919325378540}
   - component: {fileID: 114234576684998094}
+  - component: {fileID: 8185412755022767171}
   m_Layer: 5
   m_Name: System
   m_TagString: Untagged
@@ -1514,6 +1516,18 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
+--- !u!114 &8185412755022767171
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1625392850373996}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2388181d31d8450591767ca5ff7cbe73, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1657666001891494
 GameObject:
   m_ObjectHideFlags: 0
@@ -1598,7 +1612,7 @@ GameObject:
   - component: {fileID: 224418813875917392}
   - component: {fileID: 222897002348029126}
   m_Layer: 5
-  m_Name: Panel_Chat
+  m_Name: SafeArea
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1958,7 +1972,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af3fb4442a50e8e45bf91552f3875cf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  oocColor: {r: 0.378471, g: 0.6692517, b: 0.990566, a: 1}
+  oocColor: {r: 0.15566039, g: 0.55618054, b: 1, a: 1}
   ghostColor: {r: 0.7208526, g: 0.76941305, b: 0.9150943, a: 1}
   binaryColor: {r: 1, g: 0, b: 1, a: 1}
   supplyColor: {r: 1, g: 0.8051446, b: 0.3066038, a: 1}
@@ -1999,9 +2013,8 @@ MonoBehaviour:
   activeRadioChannelPanel: {fileID: 1549249320892692889}
   activeChannelTemplate: {fileID: 8380570029279695647}
   InputFieldChat: {fileID: 6487468842456376085}
-  scrollHandle: {fileID: 2807939661053576224}
-  scrollBackground: {fileID: 50052018069764188}
-  thresholdMarker: {fileID: 9002736259520338227}
+  thresholdMarkerBottom: {fileID: 9002736259520338227}
+  thresholdMarkerTop: {fileID: 2121891336962855131}
   adminHelpChat: {fileID: 7497176922575414754}
   entryPool: {fileID: 4984957583611271286}
 --- !u!114 &4984957583611271286
@@ -2555,6 +2568,41 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &2123243453920981833
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2121891336962855131}
+  m_Layer: 5
+  m_Name: thresholdMarkerTop
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2121891336962855131
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2123243453920981833}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 224798581258123564}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 1}
+  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchoredPosition: {x: 0, y: -0.000061035156}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &2235971909617706385
 GameObject:
   m_ObjectHideFlags: 0
@@ -4684,7 +4732,7 @@ GameObject:
   m_Component:
   - component: {fileID: 9002736259520338227}
   m_Layer: 5
-  m_Name: thresholdMarker
+  m_Name: thresholdMarkerBottom
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4967,15 +5015,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 115e79e65ed316546aea2bf6ffdcc366, type: 3}
---- !u!1 &9091622191222137699 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1618776996635460, guid: 115e79e65ed316546aea2bf6ffdcc366,
-    type: 3}
-  m_PrefabInstance: {fileID: 9092255765942517799}
-  m_PrefabAsset: {fileID: 0}
 --- !u!224 &9021516341056411997 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 224321409555159418, guid: 115e79e65ed316546aea2bf6ffdcc366,
+    type: 3}
+  m_PrefabInstance: {fileID: 9092255765942517799}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &9091622191222137699 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1618776996635460, guid: 115e79e65ed316546aea2bf6ffdcc366,
     type: 3}
   m_PrefabInstance: {fileID: 9092255765942517799}
   m_PrefabAsset: {fileID: 0}

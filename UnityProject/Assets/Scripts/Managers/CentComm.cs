@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Random = UnityEngine.Random;
 
 ///------------
@@ -14,6 +13,21 @@ public class CentComm : MonoBehaviour
 	public GameManager gameManager;
 
 	public StatusDisplayUpdateEvent OnStatusDisplayUpdate = new StatusDisplayUpdateEvent();
+	public string CommandStatusString;
+	public string EscapeShuttleTimeString;
+
+	public void UpdateStatusDisplay(StatusDisplayChannel channel, string text)
+	{
+		if (channel == StatusDisplayChannel.EscapeShuttle)
+		{
+			EscapeShuttleTimeString = text;
+		}
+		else if(channel == StatusDisplayChannel.Command)
+		{
+			CommandStatusString = text;
+		}
+		OnStatusDisplayUpdate.Invoke(channel);
+	}
 
 	public AlertLevel CurrentAlertLevel = AlertLevel.Green;
 
@@ -21,6 +35,8 @@ public class CentComm : MonoBehaviour
 	private List<Vector2> AsteroidLocations = new List<Vector2>();
 	private int PlasmaOrderRequestAmt;
 	private GameObject paperPrefab;
+	public DateTime lastAlertChange;
+	public double coolDownAlertChange = 5;
 
 	public static string CaptainAnnounceTemplate =
 		"\n\n<color=white><size=60><b>Captain Announces</b></size></color>\n\n"
@@ -81,6 +97,7 @@ public class CentComm : MonoBehaviour
 	{
 		AsteroidLocations.Clear();
 		CurrentAlertLevel = AlertLevel.Green;
+		lastAlertChange = GameManager.Instance.stationTime;
 		StartCoroutine(WaitToPrepareReport());
 	}
 
@@ -95,7 +112,7 @@ public class CentComm : MonoBehaviour
 		//Generic AI welcome message
 		//this sound will feel just like home once we have the proper job allocation.
 		//it plays as soon as the round starts.
-		SoundManager.PlayNetworked("Welcome", 1f);
+		SoundManager.PlayNetworked("Welcome");
 		//Wait some time after the round has started
 		yield return WaitFor.Seconds(60f);
 
@@ -120,9 +137,11 @@ public class CentComm : MonoBehaviour
 		AsteroidLocations = AsteroidLocations.OrderBy(x => Random.value).ToList();
 		PlasmaOrderRequestAmt = Random.Range(5, 50);
 
+
 		// Checks if there will be antags this round and sets the initial update/report
 		if (GameManager.Instance.GetGameModeName(true) != "Extended")
 		{
+			lastAlertChange = GameManager.Instance.stationTime;
 			SendAntagUpdate();
 
 			if (GameManager.Instance.GetGameModeName(true) == "Cargonia")
@@ -135,6 +154,9 @@ public class CentComm : MonoBehaviour
 		{
 			SendExtendedUpdate();
 		}
+
+		StartCoroutine(WaitToGenericReport());
+		yield break;
 	}
 
 	private void SendExtendedUpdate()
@@ -145,8 +167,8 @@ public class CentComm : MonoBehaviour
 	}
 	private void SendAntagUpdate()
 	{
-		SoundManager.PlayNetworked("InterceptMessage", 1f);
-		MakeAnnouncement(CentCommAnnounceTemplate, 
+		SoundManager.PlayNetworked("InterceptMessage");
+		MakeAnnouncement(CentCommAnnounceTemplate,
 						string.Format(InitialUpdateTemplate,AntagInitialUpdate+"\n\n"+AlertLevelStrings[AlertLevelString.UpToBlue]),
 						UpdateSound.alert);
 		SpawnReports(StationObjectiveReport());
@@ -158,6 +180,19 @@ public class CentComm : MonoBehaviour
 	{
 		yield return WaitFor.Seconds(Random.Range(600f,1200f));
 		MakeCommandReport(CargoniaReport, UpdateSound.notice);
+		yield break;
+	}
+	IEnumerator WaitToGenericReport()
+	{
+		if (!PlayerUtils.IsOk(gameObject))
+		{
+			yield break;
+		}
+		yield return WaitFor.Seconds(Random.Range(300f,1500f));
+		PlayerUtils.DoReport();
+
+		yield return WaitFor.Seconds(10);
+		MakeAnnouncement(CentCommAnnounceTemplate, PlayerUtils.GetGenericReport(), UpdateSound.announce);
 	}
 
 	/// <summary>
@@ -179,9 +214,9 @@ public class CentComm : MonoBehaviour
 		else if (CurrentAlertLevel > ToLevel && Announce)
 		{
 			int _levelString = (int) ToLevel * -1;
-			MakeAnnouncement(CentCommAnnounceTemplate, 
-							AlertLevelStrings[(AlertLevelString)_levelString], 
-							UpdateSound.alert);
+			MakeAnnouncement(CentCommAnnounceTemplate,
+							AlertLevelStrings[(AlertLevelString)_levelString],
+							UpdateSound.notice);
 		}
 		else if (CurrentAlertLevel < ToLevel && Announce)
 		{
@@ -220,7 +255,7 @@ public class CentComm : MonoBehaviour
 		Chat.AddSystemMsgToChat(string.Format(CentCommAnnounceTemplate, CommandNewReportString), MatrixManager.MainStationMatrix);
 
 		SoundManager.PlayNetworked(UpdateTypes[type], 1f);
-		SoundManager.PlayNetworked("Commandreport", 1f);
+		SoundManager.PlayNetworked("Commandreport");
 	}
 
 	/// <summary>
@@ -241,18 +276,34 @@ public class CentComm : MonoBehaviour
 	}
 
 	/// <summary>
+	/// Makes an announcement for all players, no sound. Must be called on server.
+	/// </summary>
+	/// <param name="template">String that will be the header of the annoucement. We have a couple ready to use </param>
+	/// <param name="text">String that will be the message body</param>
+	/// <param name="type">Value from the UpdateSound enum to play as sound when announcing</param>
+	public static void MakeAnnouncementNoSound( string template, string text)
+	{
+		if ( text.Trim() == string.Empty )
+		{
+			return;
+		}
+
+		Chat.AddSystemMsgToChat(string.Format( template, text ), MatrixManager.MainStationMatrix);
+	}
+
+	/// <summary>
 	/// Text should be no less than 10 chars
 	/// </summary>
-	public static void MakeShuttleCallAnnouncement( string minutes, string text )
+	public static void MakeShuttleCallAnnouncement( string minutes, string text, bool bypassLength = false )
 	{
-		if ( text.Trim() == string.Empty || text.Trim().Length < 10)
+		if (!bypassLength && (text.Trim() == string.Empty || text.Trim().Length < 10))
 		{
 			return;
 		}
 
 		Chat.AddSystemMsgToChat(string.Format( PriorityAnnouncementTemplate, string.Format(ShuttleCallSubTemplate,minutes,text) ),
 			MatrixManager.MainStationMatrix);
-		PlaySoundMessage.SendToAll("ShuttleCalled", Vector3.zero, 1f);
+		SoundManager.PlayNetworked("ShuttleCalled");
 	}
 
 	/// <summary>
@@ -262,7 +313,7 @@ public class CentComm : MonoBehaviour
 	{
 		Chat.AddSystemMsgToChat(string.Format( PriorityAnnouncementTemplate, string.Format(ShuttleRecallSubTemplate,text) ),
 			MatrixManager.MainStationMatrix);
-		PlaySoundMessage.SendToAll("ShuttleRecalled", Vector3.zero, 1f);
+		SoundManager.PlayNetworked("ShuttleRecalled");
 	}
 
 	private string StationObjectiveReport()
@@ -326,7 +377,7 @@ public class CentComm : MonoBehaviour
 	private static readonly Dictionary<AlertLevelString, string> AlertLevelStrings = new Dictionary<AlertLevelString, string> {
 		{
 			AlertLevelString.DownToGreen,
-			
+
 			string.Format(AlertLevelTemplate,
 					"lowered to green",
 					"All threats to the station have passed. Security may not have weapons visible,"+
@@ -334,16 +385,16 @@ public class CentComm : MonoBehaviour
 		},
 		{
 			AlertLevelString.UpToBlue,
-			
+
 			string.Format(AlertLevelTemplate,
 					"elevated to blue",
 					"The station has received reliable information about possible hostile activity"+
 					" on the station. Security staff may have weapons visible, random searches are permitted.")
-					
+
 		},
 		{
 			AlertLevelString.DownToBlue,
-			
+
 			string.Format(AlertLevelTemplate,
 					"lowered to blue",
 					"The immediate threat has passed. Security may no longer have weapons drawn at all times,"+
@@ -351,7 +402,7 @@ public class CentComm : MonoBehaviour
 		},
 		{
 			AlertLevelString.UpToRed,
-			
+
 			string.Format(AlertLevelTemplate,
 					"elevated to red",
 					"There is an immediate serious threat to the station. Security may have weapons unholstered"+
@@ -359,7 +410,7 @@ public class CentComm : MonoBehaviour
 		},
 		{
 			AlertLevelString.DownToRed,
-			
+
 			string.Format(AlertLevelTemplate,
 					"lowered to red",
 					"The station's destruction has been averted. There is still however an immediate serious"+
@@ -368,7 +419,7 @@ public class CentComm : MonoBehaviour
 		},
 		{
 			AlertLevelString.UpToDelta,
-			
+
 			string.Format(AlertLevelTemplate,
 					"elevated to delta",
 					"Destruction of the station is imminent. All crew are instructed to obey all instructions"+

@@ -15,13 +15,13 @@ public class Restraint : MonoBehaviour, ICheckedInteractable<HandApply>
 	/// How long it takes to apply the restraints
 	/// </summary>
 	[SerializeField]
-	private float applyTime;
+	private float applyTime = 0;
 
 	/// <summary>
 	/// How long it takes for another person to remove the restraints
 	/// </summary>
 	[SerializeField]
-	private float removeTime;
+	private float removeTime = 0;
 	public float RemoveTime => removeTime;
 
 	/// <summary>
@@ -59,6 +59,8 @@ public class Restraint : MonoBehaviour, ICheckedInteractable<HandApply>
 			if(performer.GetComponent<PlayerScript>()?.IsInReach(target, true) ?? false)
 			{
 				target.GetComponent<PlayerMove>().Cuff(interaction);
+				Chat.AddActionMsgToChat(performer, $"You successfully restrain {target.ExpensiveName()}.",
+					$"{performer.ExpensiveName()} successfully restrains {target.ExpensiveName()}.");
 			}
 		}
 
@@ -67,6 +69,9 @@ public class Restraint : MonoBehaviour, ICheckedInteractable<HandApply>
 		if (bar != null)
 		{
 			SoundManager.PlayNetworkedAtPos(sound, target.transform.position, sourceObj: target.gameObject);
+			Chat.AddActionMsgToChat(performer,
+				$"You begin restraining {target.ExpensiveName()}...",
+				$"{performer.ExpensiveName()} begins restraining {target.ExpensiveName()}...");
 		}
 	}
 }

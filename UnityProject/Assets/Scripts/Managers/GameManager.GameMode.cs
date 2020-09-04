@@ -124,4 +124,23 @@ public partial class GameManager
 	{
 		return GameMode.TrySpawnAntag(spawnRequest);
 	}
+
+	/// <summary>
+	/// Waits before starting the game mode (to stop players being spawned in before everything has initialised)
+	/// </summary>
+	private IEnumerator WaitToStartGameMode()
+	{
+		yield return WaitFor.EndOfFrame;
+
+		foreach (var job in GameMode.PossibleAntags)
+		{
+			if (job.AntagOccupation != null && job.AntagOccupation.JobType == JobType.SYNDICATE)
+			{
+				yield return StartCoroutine(SubSceneManager.Instance.LoadSyndicate());
+				break;
+			}
+		}
+
+		GameMode.StartRound();
+	}
 }

@@ -1,11 +1,9 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using Mirror;
 using UnityEngine.Serialization;
-using Enum = Google.Protobuf.WellKnownTypes.Enum;
 
 /// <summary>
 /// Allows closet to be opened / closed / locked
@@ -32,14 +30,22 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	[SerializeField]
 	private int playerLimit = 3;
 
-	[Tooltip("How much metal to drop when destroyed")]
+	[Tooltip("Type of material to drop when destroyed")]
+	public GameObject matsOnDestroy;
+
+	[FormerlySerializedAs("metalDroppedOnDestroy")]
+	[Tooltip("How much material to drop when destroyed")]
 	[SerializeField]
-	private int metalDroppedOnDestroy = 2;
+	private int matsDroppedOnDestroy = 2;
 
 	[FormerlySerializedAs("soundOnOpen")]
 	[Tooltip("Name of sound to play when opened / closed")]
 	[SerializeField]
 	private string soundOnOpenOrClose = "OpenClose";
+
+	[Tooltip("Name of sound to play when emagged")]
+	[SerializeField]
+	private string soundOnEmag = "grillehit";
 
 	[Tooltip("Sprite to show when door is open.")]
 	[SerializeField]
@@ -59,7 +65,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	/// <summary>
 	/// Currently held items, only valid server side
 	/// </summary>
-	public IEnumerable<ObjectBehaviour> ServerHeldItems => serverHeldItems;
+	public List<ObjectBehaviour> ServerHeldItems => serverHeldItems;
 
 	/// <summary>
 	/// Currently held players, only valid server side
@@ -76,6 +82,11 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	/// Whether locker is currently locked. Valid client / server side.
 	/// </summary>
 	public bool IsLocked => isLocked;
+
+	/// <summary>
+	/// Whether locker is emagged.
+	/// </summary>
+	public bool isEmagged;
 
 	/// <summary>
 	/// Current status of the closet, valid client / server side.
@@ -99,7 +110,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	private bool isLocked;
 
 	//Inventory
-	private IEnumerable<ObjectBehaviour> serverHeldItems = new List<ObjectBehaviour>();
+	private List<ObjectBehaviour> serverHeldItems = new List<ObjectBehaviour>();
 	private List<ObjectBehaviour> serverHeldPlayers = new List<ObjectBehaviour>();
 
 	private RegisterCloset registerTile;
@@ -147,9 +158,9 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 		SyncLocked(isLocked, false);
 		SyncStatus(statusSync, ClosetStatus.Open);
 
-		if (metalDroppedOnDestroy > 0)
+		if (matsDroppedOnDestroy > 0)
 		{
-			Spawn.ServerPrefab("Metal", gameObject.TileWorldPosition().To3Int(), transform.parent, count: metalDroppedOnDestroy,
+			Spawn.ServerPrefab(matsOnDestroy, gameObject.TileWorldPosition().To3Int(), transform.parent, count: matsDroppedOnDestroy,
 				scatterRadius: Spawn.DefaultScatterRadius, cancelIfImpassable: true);
 		}
 	}
@@ -204,7 +215,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 		{
 			Despawn.ServerSingle(heldItem.gameObject);
 		}
-		serverHeldItems = Enumerable.Empty<ObjectBehaviour>();
+		serverHeldItems.Clear();
 	}
 
 	/// <summary>
@@ -228,7 +239,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	private void ServerAddInternalItemInternal(ObjectBehaviour toAdd, bool force = false)
 	{
 		if (toAdd == null || serverHeldItems.Contains(toAdd) || (!IsClosed && !force)) return;
-		serverHeldItems = serverHeldItems.Concat(new [] {toAdd});
+		serverHeldItems.Add(toAdd);
 		toAdd.parentContainer = pushPull;
 		toAdd.VisibleState = false;
 	}
@@ -298,16 +309,16 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 		{
 			if(serverHeldPlayers.Count > 0 && registerTile.closetType == ClosetType.SCANNER)
 			{
-				SyncStatus(statusSync, ClosetStatus.ClosedWithOccupant);
+				statusSync = ClosetStatus.ClosedWithOccupant;
 			}
 			else
 			{
-				SyncStatus(statusSync, ClosetStatus.Closed);
+				statusSync = ClosetStatus.Closed;
 			}
 		}
 		else
 		{
-			SyncStatus(statusSync, ClosetStatus.Open);
+			statusSync = ClosetStatus.Open;
 		}
 
 	}
@@ -358,7 +369,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	[Server]
 	public void ServerToggleLocked(bool? nowLocked = null)
 	{
-		SyncLocked(isLocked, nowLocked.GetValueOrDefault(!IsLocked));
+		isLocked = nowLocked.GetValueOrDefault(!IsLocked);
 	}
 
 	private void SyncLocked(bool oldValue, bool value)
@@ -399,11 +410,19 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 				Vector3 performerPosition = interaction.Performer.WorldPosServer();
 				Inventory.ServerDrop(interaction.HandSlot, targetPosition - performerPosition);
 			}
+			else if (IsClosed && !isEmagged && Validations.HasItemTrait(interaction.HandObject, CommonTraits.Instance.Emag))
+			{
+				SoundManager.PlayNetworkedAtPos(soundOnEmag, registerTile.WorldPositionServer, 1f, sourceObj: gameObject);
+				ServerHandleContentsOnStatusChange(false);
+				isEmagged = true;
+				SyncLocked(isLocked, false);
+				SyncStatus(statusSync, ClosetStatus.Open);
+			}
 		}
 		else
 		{
 			// player want to close locker?
-			if (!isLocked)
+			if (!isLocked && !isEmagged)
 			{
 				ServerToggleClosed();
 			}
@@ -458,6 +477,8 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 	{
 		foreach (ObjectBehaviour item in serverHeldItems)
 		{
+			if (!item) continue;
+
 			CustomNetTransform netTransform = item.GetComponent<CustomNetTransform>();
 			//avoids blinking of premapped items when opening first time in another place:
 			Vector3Int pos = registerTile.WorldPositionServer;
@@ -475,7 +496,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 			item.parentContainer = null;
 		}
 
-		serverHeldItems = Enumerable.Empty<ObjectBehaviour>();
+		serverHeldItems.Clear();
 	}
 
 	/// <summary>
@@ -487,12 +508,6 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 			.Where(ob => ob != null && ob.gameObject != gameObject)
 			.Where(ob =>
 			{
-				//exclude anchored pipes
-				if (ob.TryGetComponent<Pipe>(out var pipe))
-				{
-					return !pipe.anchored;
-				}
-
 				return true;
 			});
 
@@ -522,7 +537,7 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 			player.parentContainer = null;
 
 			//Stop tracking closet
-			FollowCameraMessage.Send(player.gameObject, null);
+			FollowCameraMessage.Send(player.gameObject, player.gameObject);
 		}
 		serverHeldPlayers = new List<ObjectBehaviour>();
 	}
@@ -588,7 +603,6 @@ public class ClosetControl : NetworkBehaviour, ICheckedInteractable<HandApply> ,
 			var optionName = IsClosed ? "Open" : "Close";
 			result.AddElement("OpenClose", RightClickInteract, nameOverride: optionName);
 		}
-
 
 		return result;
 	}

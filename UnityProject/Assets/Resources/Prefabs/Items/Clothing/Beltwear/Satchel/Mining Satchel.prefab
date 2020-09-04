@@ -24,6 +24,12 @@ PrefabInstance:
       propertyPath: StorageItemName
       value: 256
       objectReference: {fileID: 0}
+    - target: {fileID: 568251073254023583, guid: a379cfb2056ee4a0f8ce1f68696ef45c,
+        type: 3}
+      propertyPath: PresentSpriteSet
+      value: 
+      objectReference: {fileID: 11400000, guid: 69b2c76fac696de448189cb63b516071,
+        type: 2}
     - target: {fileID: 781920904040974749, guid: a379cfb2056ee4a0f8ce1f68696ef45c,
         type: 3}
       propertyPath: clothData
@@ -43,7 +49,7 @@ PrefabInstance:
         type: 3}
       propertyPath: actionData
       value: 
-      objectReference: {fileID: 11400000, guid: be9856a38a3b7d44198fc4fcd9df4d47,
+      objectReference: {fileID: 11400000, guid: b2d6bb4238470a93681312ffe4894085,
         type: 2}
     - target: {fileID: 4732539154265465329, guid: a379cfb2056ee4a0f8ce1f68696ef45c,
         type: 3}

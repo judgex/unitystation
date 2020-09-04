@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using NUnit.Framework.Internal;
 using UnityEngine;
 using UnityEngine.Experimental.XR;
 
@@ -9,15 +8,14 @@ using UnityEngine.Experimental.XR;
 /// </summary>
 public class UpdateConnectedPlayersMessage : ServerMessage
 {
-	public override short MessageType => (short) MessageTypes.UpdateConnectedPlayersMessage;
 	public ClientConnectedPlayer[] Players;
 
-	public override IEnumerator Process()
+	public override void Process()
 	{
 //		Logger.Log("Processed " + ToString());
 		if (PlayerList.Instance == null || PlayerList.Instance.ClientConnectedPlayers == null)
 		{
-			yield break;
+			return;
 		}
 
 		if (Players != null)
@@ -32,7 +30,7 @@ public class UpdateConnectedPlayersMessage : ServerMessage
 
 		PlayerList.Instance.RefreshPlayerListText();
 		UIManager.Display.jobSelectWindow.GetComponent<GUI_PlayerJobs>().UpdateJobsList();
-		yield return null;
+		UIManager.Display.preRoundWindow.GetComponent<GUI_PreRoundWindow>().UpdatePlayerCount(Players?.Length ?? 0);
 	}
 
 	public static UpdateConnectedPlayersMessage Send()
@@ -66,11 +64,20 @@ public class UpdateConnectedPlayersMessage : ServerMessage
 				}
 			}
 
+			var tag = "";
+
+			if (PlayerList.Instance.IsAdmin(c.UserId))
+			{
+				tag = "<color=blue>[Admin]</color>";
+			}
+
 			prepareConnectedPlayers.Add(new ClientConnectedPlayer
 			{
+				UserName = c.Username,
 				Name = c.Name,
 				Job = c.Job,
-				PendingSpawn = pendingSpawn
+				PendingSpawn = pendingSpawn,
+				Tag = tag
 			});
 		}
 
@@ -78,10 +85,5 @@ public class UpdateConnectedPlayersMessage : ServerMessage
 
 		msg.SendToAll();
 		return msg;
-	}
-
-	public override string ToString()
-	{
-		return $"[UpdateConnectedPlayersMessage Type={MessageType} Players={string.Join(", ", Players)}]";
 	}
 }

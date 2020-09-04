@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using UnityEngine;
 using Mirror;
 
@@ -9,18 +7,21 @@ using Mirror;
 [RequireComponent(typeof(ItemStorage))]
 public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<HandApply>
 {
-	[SyncVar(hook = nameof(SyncCabinet))] public bool IsClosed;
+	public bool IsClosed;
 
-	[SyncVar(hook = nameof(SyncItemSprite))] public bool isFull;
-
-	public Sprite spriteClosed;
-	public Sprite spriteOpenedEmpty;
-	public Sprite spriteOpenedOccupied;
 	[SerializeField]
-	private SpriteRenderer spriteRenderer;
-
+	private SpriteHandler spriteHandler = default;
 	private ItemStorage storageObject;
 	private ItemSlot slot;
+
+	private enum FireCabinetState
+	{
+		Closed = 0,
+		OpenEmpty = 1,
+		OpenFull = 2,
+		/// <summary> OpenMini represents Open state containing pocket extinguisher. Not implemented. </summary>
+		OpenMini = 3
+	};
 
 	private void Awake()
 	{
@@ -39,27 +40,14 @@ public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<Ha
 	public override void OnStartServer()
 	{
 		EnsureInit();
-		if (spriteRenderer == null)
-		{
-			spriteRenderer = transform.Find("Sprite").GetComponent<SpriteRenderer>();
-		}
 		IsClosed = true;
-		isFull = true;
 		base.OnStartServer();
 	}
 
 	public override void OnStartClient()
 	{
 		EnsureInit();
-		StartCoroutine(WaitForLoad());
 		base.OnStartClient();
-	}
-
-	private IEnumerator WaitForLoad()
-	{
-		yield return WaitFor.Seconds(3f);
-		SyncCabinet(IsClosed, IsClosed);
-		SyncItemSprite(isFull, isFull);
 	}
 
 	public bool WillInteract(HandApply interaction, NetworkSide side)
@@ -74,27 +62,27 @@ public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<Ha
 
 	public void ServerPerformInteraction(HandApply interaction)
 	{
-		PlayerNetworkActions pna = interaction.Performer.GetComponent<PlayerNetworkActions>();
-
 		//If alt is pressed, close the cabinet.
 		if (interaction.IsAltClick)
 		{
 			if (!IsClosed)
-				IsClosed = true;
+			{
+				Close();
+			}
 		}
 		else // Take out or put in object into cabinet.
 		{
-
 			if (IsClosed)
 			{
-				if(isFull && interaction.HandObject == null) {
+				if(slot.Item != null && interaction.HandObject == null)
+				{
 					ServerRemoveExtinguisher(interaction.HandSlot);
 				}
-				IsClosed = false;
+				Open();
 			}
 			else
 			{
-				if (isFull)
+				if (slot.Item != null)
 				{
 					if (interaction.HandObject == null)
 					{
@@ -102,7 +90,7 @@ public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<Ha
 					}
 					else
 					{
-						IsClosed = true;
+						Close();
 					}
 				}
 				else
@@ -113,19 +101,18 @@ public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<Ha
 					}
 					else
 					{
-						IsClosed = true;
+						Close();
 					}
 				}
 			}
 		}
-
 	}
 
 	private void ServerRemoveExtinguisher(ItemSlot toSlot)
 	{
 		if (Inventory.ServerTransfer(slot, toSlot))
 		{
-			isFull = false;
+			ServerSetState(FireCabinetState.OpenEmpty);
 		}
 	}
 
@@ -133,58 +120,33 @@ public class InteractableFireCabinet : NetworkBehaviour, ICheckedInteractable<Ha
 	{
 		if (Inventory.ServerTransfer(interaction.HandSlot, slot))
 		{
-			isFull = true;
-		}
-	}
-
-	public void SyncItemSprite(bool oldValue, bool value)
-	{
-		EnsureInit();
-		isFull = value;
-		if (!isFull)
-		{
-			spriteRenderer.sprite = spriteOpenedEmpty;
-		}
-		else
-		{
-			if (!IsClosed)
-			{
-				spriteRenderer.sprite = spriteOpenedOccupied;
-			}
-		}
-	}
-
-	private void SyncCabinet(bool oldValue, bool value)
-	{
-		EnsureInit();
-		IsClosed = value;
-		if (IsClosed)
-		{
-			Close();
-		}
-		else
-		{
-			Open();
+			ServerSetState(FireCabinetState.OpenFull);
 		}
 	}
 
 	private void Open()
 	{
+		IsClosed = false;
 		SoundManager.PlayAtPosition("OpenClose", transform.position, gameObject);
-		if (isFull)
+		if (slot.Item != null)
 		{
-			spriteRenderer.sprite = spriteOpenedOccupied;
+			ServerSetState(FireCabinetState.OpenFull);
 		}
 		else
 		{
-			spriteRenderer.sprite = spriteOpenedEmpty;
+			ServerSetState(FireCabinetState.OpenEmpty);
 		}
 	}
 
 	private void Close()
 	{
+		IsClosed = true;
 		SoundManager.PlayAtPosition("OpenClose", transform.position, gameObject);
-		spriteRenderer.sprite = spriteClosed;
+		ServerSetState(FireCabinetState.Closed);
 	}
 
+	private void ServerSetState(FireCabinetState newState)
+	{
+		spriteHandler.ChangeSprite((int) newState);
+	}
 }

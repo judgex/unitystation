@@ -30,8 +30,16 @@ public class OreGenerator : MonoBehaviour
 	private Tilemap wallTilemap;
 	private TileChangeManager tileChangeManager;
 
+	public bool runOnStart = true;
+
 	// Start is called before the first frame update
 	void Start()
+	{
+		if(!runOnStart) return;
+		RunOreGenerator();
+	}
+
+	public void RunOreGenerator()
 	{
 		var metaTileMap = GetComponentInChildren<MetaTileMap>();
 		wallTilemap = metaTileMap.Layers[LayerType.Walls].GetComponent<Tilemap>();
@@ -92,7 +100,8 @@ public class OreGenerator : MonoBehaviour
 		{
 			var chosenLocation = locations[RANDOM.Next(locations.Count)];
 			var ranLocation = chosenLocation + DIRECTIONS[RANDOM.Next(DIRECTIONS.Count)];
-			if (wallTilemap.GetTile(ranLocation) != null)
+			var tile = wallTilemap.GetTile(ranLocation);
+			if (tile != null && tile.name.Contains("rock_wall"))
 			{
 				tileChangeManager.UpdateTile(ranLocation, materialSpecified.WallTile);
 				locations.Add(ranLocation);
@@ -128,19 +137,4 @@ public class OreProbability
 	         " spawn in this cluster.")]
 	[FormerlySerializedAs("NumberBlocks")] public List<int> PossibleClusterSizes = new List<int>();
 
-}
-
-
-public enum OreCategory
-{
-	None,
-	Iron,
-	Plasma,
-	Silver,
-	Gold,
-	Uranium,
-	BlueSpace,
-	Titanium,
-	Diamond,
-	Bananium
 }

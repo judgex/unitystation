@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Lucene.Net.Support;
+using NaughtyAttributes;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
@@ -19,6 +19,8 @@ public class CargoManager : MonoBehaviour
 	public List<CargoOrder> CurrentOrders = new List<CargoOrder>(); // Orders - payed orders that will spawn in shuttle on centcom arrival
 	public List<CargoOrder> CurrentCart = new List<CargoOrder>(); // Cart - current orders, that haven't been payed for/ordered yet
 
+	public int cartSizeLimit = 20;
+
 	public CargoUpdateEvent OnCartUpdate = new CargoUpdateEvent();
 	public CargoUpdateEvent OnShuttleUpdate = new CargoUpdateEvent();
 	public CargoUpdateEvent OnCreditsUpdate = new CargoUpdateEvent();
@@ -28,10 +30,12 @@ public class CargoManager : MonoBehaviour
 	[SerializeField]
 	private CargoData cargoData = null;
 
+	public CargoData CargoData => cargoData;
+
 	[SerializeField]
 	private float shuttleFlyDuration = 10f;
 
-	private HashMap<string, ExportedItem> exportedItems = new HashMap<string, ExportedItem>();
+	private Dictionary<string, ExportedItem> exportedItems = new Dictionary<string, ExportedItem>();
 
 	private void Awake()
 	{
@@ -47,15 +51,34 @@ public class CargoManager : MonoBehaviour
 
 	private void OnEnable()
 	{
-		SceneManager.sceneLoaded += OnRoundRestart;
+		SceneManager.activeSceneChanged += OnRoundRestart;
 	}
 
 	private void OnDisable()
 	{
-		SceneManager.sceneLoaded -= OnRoundRestart;
+		SceneManager.activeSceneChanged -= OnRoundRestart;
 	}
 
-	void OnRoundRestart(Scene scene, LoadSceneMode mode)
+	/// <summary>
+	/// Checks for any Lifeforms (dead or alive) that might be aboard the shuttle
+	/// </summary>
+	/// <returns>true if a lifeform is found, false if none is found</returns>
+	bool CheckLifeforms()
+	{
+		LayerMask layersToCheck = LayerMask.GetMask("Players", "NPC");
+		Transform ObjectHolder = CargoShuttle.Instance.SearchForObjectsOnShuttle();
+		foreach (Transform child in ObjectHolder)
+		{
+			if(((1<<child.gameObject.layer) & layersToCheck) == 0)
+			{
+				continue;
+			}
+			return true;
+		}
+		return false;
+	}
+
+	void OnRoundRestart(Scene oldScene, Scene newScene)
 	{
 		Supplies.Clear();
 		CurrentOrders.Clear();
@@ -95,16 +118,31 @@ public class CargoManager : MonoBehaviour
 				CentcomMessage += "Shuttle is sent back with goods." + "\n";
 				StartCoroutine(Timer(true));
 			}
-			//If we are at station - we start timer and launch shuttle at the same time.
+
+			//If we are at station - First checks for any people or animals aboard
+			//If any, refuses to depart until the lifeform is removed.
+			//If none, we start timer and launch shuttle at the same time.
 			//Once shuttle arrives centcomDest - CargoShuttle will wait till timer is done
 			//and will call OnShuttleArrival()
 			else if (ShuttleStatus == ShuttleStatus.DockedStation)
 			{
-				CargoShuttle.Instance.MoveToCentcom();
-				ShuttleStatus = ShuttleStatus.OnRouteCentcom;
-				CentcomMessage = "";
-				exportedItems.Clear();
-				StartCoroutine(Timer(false));
+				string warningMessageEnd = "organisms aboard." + "\n";
+				if (CheckLifeforms())
+				{
+					CurrentFlyTime = 0;
+					if (CentcomMessage.EndsWith(warningMessageEnd) == false)
+					{
+						CentcomMessage += "Due to safety and security reasons, the automatic cargo shuttle is unable to depart with any human, alien or animal organisms aboard." + "\n";
+					}
+				}
+				else
+				{
+					CargoShuttle.Instance.MoveToCentcom();
+					ShuttleStatus = ShuttleStatus.OnRouteCentcom;
+					CentcomMessage = "";
+					exportedItems.Clear();
+					StartCoroutine(Timer(false));
+				}
 			}
 		}
 
@@ -220,7 +258,7 @@ public class CargoManager : MonoBehaviour
 		OnCreditsUpdate?.Invoke();
 
 		var attributes = item.gameObject.GetComponent<Attributes>();
-		string exportName;
+		string exportName = System.String.Empty;
 		if (attributes)
 		{
 			if (string.IsNullOrEmpty(attributes.ExportName))
@@ -289,6 +327,11 @@ public class CargoManager : MonoBehaviour
 	public void AddToCart(CargoOrder orderToAdd)
 	{
 		if (!CustomNetworkManager.Instance._isServer)
+		{
+			return;
+		}
+
+		if (CurrentCart.Count > cartSizeLimit)
 		{
 			return;
 		}
@@ -380,6 +423,9 @@ public class CargoOrder
 	public int CreditsCost = 1000;
 	public GameObject Crate = null;
 	public List<GameObject> Items = new List<GameObject>();
+
+	[ReadOnly]
+	public int TotalCreditExport = 0;
 }
 
 [System.Serializable]

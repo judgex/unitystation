@@ -23,7 +23,8 @@ using Random = UnityEngine.Random;
 [RequireComponent(typeof(CustomNetTransform))]
 [RequireComponent(typeof(RegisterTile))]
 [RequireComponent(typeof(Meleeable))]
-public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClickable, IServerSpawn, IExaminable
+public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClickable, IServerSpawn, IExaminable,
+	IServerDespawn
 {
 
 	/// <summary>
@@ -39,7 +40,13 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 	/// and Integrity is about to apply damage.
 	/// </summary>
 	[NonSerialized]
-	public DamagedEvent OnApllyDamage = new DamagedEvent();
+	public DamagedEvent OnApplyDamage = new DamagedEvent();
+
+	/// <summary>
+	/// event for hotspots
+	/// </summary>
+	[NonSerialized]
+	public UnityEvent OnExposedEvent = new UnityEvent();
 
 	/// <summary>
 	/// Server-side burn up logic - invoked when integrity reaches 0 due to burn damage.
@@ -51,8 +58,17 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 	[NonSerialized]
 	public UnityAction<DestructionInfo> OnBurnUpServer;
 
+	public Action OnServerDespawnEvent;
+
+	[Tooltip("This object's initial \"HP\"")]
+	public float initialIntegrity = 100f;
+
 	[Tooltip("Sound to play when damage applied.")]
 	public string soundOnHit;
+
+	[Tooltip("A damage threshold the attack needs to pass in order to apply damage to this item.")]
+	public float damageDeflection = 0;
+
 	/// <summary>
 	/// Armor for this object.
 	/// </summary>
@@ -71,7 +87,6 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 	[Tooltip("Below this temperature (in Kelvin) the object will be unaffected by fire exposure.")]
 	public float HeatResistance = 100;
 
-	public float initialIntegrity = 100f;
 
 	[SyncVar(hook = nameof(SyncOnFire))]
 	private bool onFire = false;
@@ -187,12 +202,11 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 	public void ApplyDamage(float damage, AttackType attackType, DamageType damageType)
 	{
 		//already destroyed, don't apply damage
-		if (destroyed || Resistances.Indestructable) return;
+		if (destroyed || Resistances.Indestructable || damage < damageDeflection) return;
 
 		if (Resistances.FireProof && attackType == AttackType.Fire) return;
 
 		var damageInfo = new DamageInfo(damage, attackType, damageType);
-		
 
 		damage = Armor.GetDamage(damage, attackType);
 		if (damage > 0)
@@ -203,10 +217,23 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 			}
 			integrity -= damage;
 			lastDamageType = damageType;
-			OnApllyDamage.Invoke(damageInfo);
+			OnApplyDamage.Invoke(damageInfo);
 			CheckDestruction();
 
 			Logger.LogTraceFormat("{0} took {1} {2} damage from {3} attack (resistance {4}) (integrity now {5})", Category.Health, name, damage, damageType, attackType, Armor.GetRating(attackType), integrity);
+		}
+	}
+
+	/// <summary>
+	/// Directly restore integrity to this object. Final integrity will not exceed the initial integrity.
+	/// </summary>
+	[Server]
+	public void RestoreIntegrity(float amountToRestore)
+	{
+		integrity += amountToRestore;
+		if (integrity > initialIntegrity)
+		{
+			integrity = initialIntegrity;
 		}
 	}
 
@@ -321,12 +348,13 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 		{
 			ApplyDamage(exposure.StandardDamage(), AttackType.Fire, DamageType.Burn);
 		}
+		OnExposedEvent.Invoke();
 		Profiler.EndSample();
 	}
 
 	public RightClickableResult GenerateRightClickOptions()
 	{
-		if (string.IsNullOrEmpty(PlayerList.Instance.AdminToken))
+		if (string.IsNullOrEmpty(PlayerList.Instance.AdminToken) || !KeyboardInputManager.Instance.CheckKeyAction(KeyAction.ShowAdminOptions, KeyboardInputManager.KeyEventType.Hold))
 		{
 			return null;
 		}
@@ -343,6 +371,16 @@ public class Integrity : NetworkBehaviour, IHealth, IFireExposable, IRightClicka
 	private void AdminMakeHotspot()
 	{
 		PlayerManager.PlayerScript.playerNetworkActions.CmdAdminMakeHotspot(gameObject, ServerData.UserID, PlayerList.Instance.AdminToken);
+	}
+
+	public void OnDespawnServer(DespawnInfo info)
+	{
+		OnServerDespawnEvent?.Invoke();
+		var cnt = GetComponent<CustomNetTransform>();
+		if (cnt != null)
+		{
+			cnt.DisappearFromWorldServer();
+		}
 	}
 }
 

@@ -9,7 +9,7 @@ using UnityEngine.Events;
 /// they are scanned among immediate children
 /// of this gameObject (non-recursive)
 /// </summary>
-public class NetPageSwitcher : NetUIElement
+public class NetPageSwitcher : NetUIStringElement
 {
 	public override ElementMode InteractionMode => ElementMode.ServerWrite;
 
@@ -24,13 +24,14 @@ public class NetPageSwitcher : NetUIElement
 	/// </summary>
 	public PageChangeEvent OnPageChange;
 
-	public override void ExecuteServer() {}
+	public override void ExecuteServer(ConnectedPlayer subject) {}
 
 	public override string Value {
 		get => CurrentPageIndex.ToString();
 		set {
 			externalChange = true;
-			if ( int.TryParse( value, out var parsedValue ) && Pages.Count > parsedValue )
+
+			if (int.TryParse(value, out var parsedValue) && Pages.Count > parsedValue && parsedValue > -1)
 			{
 				SetActivePageInternal( Pages[parsedValue] );
 			}
@@ -84,7 +85,7 @@ public class NetPageSwitcher : NetUIElement
 	///Not just own value, include current page elements as well
 	protected override void UpdatePeepersLogic() {
 		List<ElementValue> valuesToSend = new List<ElementValue>(100) {ElementValue};
-		foreach ( NetUIElement entry in CurrentPage.Elements )
+		foreach ( NetUIElementBase entry in CurrentPage.Elements )
 		{
 			valuesToSend.Add( entry.ElementValue );
 		}
@@ -98,7 +99,19 @@ public class NetPageSwitcher : NetUIElement
 	/// </summary>
 	public void SetActivePage( NetPage page )
 	{
-		SetValue = Pages.IndexOf( page ).ToString();
+		SetValueServer(Pages.IndexOf( page ).ToString());
+	}
+
+	/// <summary>
+	/// [Server]
+	/// Activates the page corresponding to the given page index.
+	/// </summary>
+	/// <param name="pageIndex">The index of the page to be activated (from Pages field)</param>
+	public void SetActivePage(int pageIndex)
+	{
+		if (Pages.ElementAtOrDefault(pageIndex) == null) return;
+
+		SetActivePage(Pages[pageIndex]);
 	}
 
 	private void SetActivePageInternal( NetPage newPage )
@@ -142,7 +155,7 @@ public class NetPageSwitcher : NetUIElement
 		int suggestedIndex = CurrentPageIndex + 1;
 		if ( wrap )
 		{
-			SetValue = Pages.WrappedIndex( suggestedIndex ).ToString();
+			SetValueServer(Pages.WrappedIndex( suggestedIndex ).ToString());
 		}
 		else
 		{
@@ -151,7 +164,7 @@ public class NetPageSwitcher : NetUIElement
 				Logger.LogTraceFormat( "'{0}' page switcher: no more >> pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex );
 				return;
 			}
-			SetValue = suggestedIndex.ToString();
+			SetValueServer(suggestedIndex.ToString());
 		}
 	}
 
@@ -165,7 +178,7 @@ public class NetPageSwitcher : NetUIElement
 		int suggestedIndex = CurrentPageIndex - 1;
 		if ( wrap )
 		{
-			SetValue = Pages.WrappedIndex( suggestedIndex ).ToString();
+			SetValueServer(Pages.WrappedIndex( suggestedIndex ).ToString());
 		}
 		else
 		{
@@ -174,7 +187,7 @@ public class NetPageSwitcher : NetUIElement
 				Logger.LogTraceFormat( "'{0}' page switcher: no more << pages to switch to (index={1})", Category.NetUI, gameObject.name, suggestedIndex );
 				return;
 			}
-			SetValue = suggestedIndex.ToString();
+			SetValueServer(suggestedIndex.ToString());
 		}
 	}
 }

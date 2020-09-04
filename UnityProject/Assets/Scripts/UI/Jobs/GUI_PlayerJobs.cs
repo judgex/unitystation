@@ -1,8 +1,10 @@
-﻿using System;
-using System.Linq;
+﻿using Audio.Containers;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using System;
+using System.Globalization;
 
 /// <summary>
 /// Manages the UI buttons for letting the player choose their desired job.
@@ -25,6 +27,12 @@ public class GUI_PlayerJobs : MonoBehaviour
 	/// The gameobject to display the spectate button and others
 	/// </summary>
 	public GameObject footer = null;
+
+	[SerializeField]
+	private GameObject errorInfoWindow = null;
+
+	[SerializeField]
+	private Text errorReasonText = null;
 
 	/// <summary>
 	/// A gameobject that is shown after job selection when the player is waiting to spawn.
@@ -63,8 +71,43 @@ public class GUI_PlayerJobs : MonoBehaviour
 		footer.SetActive(false);
 		waitMessage.SetActive(true);
 
-		PlayerManager.LocalViewerScript.CmdRequestJob(preference, PlayerManager.CurrentCharacterSettings);
+		PlayerManager.LocalViewerScript.RequestJob(preference);
 		waitForSpawnTimer = waitForSpawnTimerMax;
+	}
+
+	private void ShowJobSelection()
+	{
+		SoundManager.Play("Click01");
+		screen_Jobs.SetActive(true);
+		footer.SetActive(true);
+		waitMessage.SetActive(false);
+	}
+
+	public void ShowFailMessage(JoinedViewer.JobRequestError failReason)
+	{
+		waitForSpawnTimer = 0;
+		ShowJobSelection();
+
+		errorReasonText.text = GetFailMessage(failReason);
+		errorInfoWindow.SetActive(true);
+	}
+
+	private string GetFailMessage(JoinedViewer.JobRequestError failReason)
+	{
+		switch (failReason)
+		{
+			case JoinedViewer.JobRequestError.InvalidUserID:
+				return "Invalid User ID.";
+			case JoinedViewer.JobRequestError.InvalidPlayerID:
+				return "Invalid Player ID.";
+			case JoinedViewer.JobRequestError.RoundNotReady:
+				return "New shift hasn't started yet.";
+			case JoinedViewer.JobRequestError.JobBanned:
+				return "You were previously fired from this position. [Job-banned]";
+			case JoinedViewer.JobRequestError.PositionsFilled:
+				return "All positions for this profession have been filled.";
+			default: return "Unspecified error.";
+		}
 	}
 
 	void OnEnable()
@@ -72,7 +115,6 @@ public class GUI_PlayerJobs : MonoBehaviour
 		screen_Jobs.SetActive(true);
 		SetFooter();
 		footer.SetActive(true);
-
 	}
 
 	/// <summary>
@@ -84,7 +126,7 @@ public class GUI_PlayerJobs : MonoBehaviour
 		{
 			// Job selection is finished, close the window.
 			waitForSpawnTimer = 0;
-			SoundManager.SongTracker.Stop();
+			MusicManager.SongTracker.Stop();
 			gameObject.SetActive(false);
 			waitMessage.SetActive(false);
 			screen_Jobs.SetActive(true);
@@ -97,10 +139,7 @@ public class GUI_PlayerJobs : MonoBehaviour
 			if (waitForSpawnTimer <= 0)
 			{
 				// Job selection failed, re-open it.
-				SoundManager.Play("Click01");
-				screen_Jobs.SetActive(true);
-				footer.SetActive(true);
-				waitMessage.SetActive(false);
+				ShowJobSelection();
 			}
 		}
 	}
@@ -135,10 +174,11 @@ public class GUI_PlayerJobs : MonoBehaviour
 			// This line was added for unit testing - but now it's only rewrite occupations meta
 			//occupation.name = jobType.ToString();
 
-			var color = occupation.ChoiceColor;
+			var image = occupationGO.GetComponent<Image>();
+			var text = occupationGO.GetComponentInChildren<TextMeshProUGUI>();
 
-			occupationGO.GetComponent<Image>().color = color;
-			occupationGO.GetComponentInChildren<Text>().text = occupation.DisplayName + " (" + active + " of " + available + ")";
+			image.color = occupation.ChoiceColor;
+			text.text = occupation.DisplayName + " (" + active + " of " + available + ")";
 			occupationGO.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
 
 			// Disabled button for full jobs
@@ -149,6 +189,20 @@ public class GUI_PlayerJobs : MonoBehaviour
 			else // Enabled button with listener for vacant jobs
 			{
 				occupationGO.GetComponent<Button>().onClick.AddListener(() => { BtnOk(jobType); });
+			}
+
+			var check = PlayerList.Instance.ClientCheckBanReturn(occupation.JobType);
+
+			if (check != null)
+			{
+				var entryTime = DateTime.ParseExact(check.dateTimeOfBan,"O",CultureInfo.InvariantCulture);
+				var totalMins = Mathf.Abs((float)(entryTime - DateTime.Now).TotalMinutes);
+
+				image.color = Color.red;
+				var msg = check.isPerma ? "Perma Banned" : $"banned for {Mathf.RoundToInt((float)check.minutes - totalMins)} minutes";
+				text.text = occupation.DisplayName + $" is {msg}";
+
+				occupationGO.GetComponent<Button>().interactable = false;
 			}
 
 			// Job window listener
@@ -171,9 +225,9 @@ public class GUI_PlayerJobs : MonoBehaviour
 	{
 		GameObject occupationGO = Instantiate(buttonPrefab, footer.transform);
 		occupationGO.GetComponent<Image>().color = Color.white;
-		occupationGO.GetComponentInChildren<Text>().text = "Spectate";
+		occupationGO.GetComponentInChildren<TextMeshProUGUI>().text = "Spectate";
 		occupationGO.transform.localScale = new Vector3(1.0f, 1f, 1.0f);
-		occupationGO.GetComponent<Button>().onClick.AddListener(() => { PlayerManager.LocalViewerScript.CmdSpectacte(); });
+		occupationGO.GetComponent<Button>().onClick.AddListener(() => { PlayerManager.LocalViewerScript.Spectate(); });
 
 	}
 }

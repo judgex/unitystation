@@ -22,6 +22,8 @@ GameObject:
   - component: {fileID: 3665939516804425690}
   - component: {fileID: -3762999717013136981}
   - component: {fileID: -7769837656819982877}
+  - component: {fileID: 4334543004684285896}
+  - component: {fileID: -1683014087683841188}
   m_Layer: 23
   m_Name: office_chair
   m_TagString: Untagged
@@ -103,6 +105,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  snapToGridOnStart: 1
   IsFixedMatrix: 0
 --- !u!114 &114865010593986352
 MonoBehaviour:
@@ -117,6 +120,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   spriteMatrixRotationBehavior: 1
+  ignoreExtraRotation: []
 --- !u!114 &114905015787199190
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -129,6 +133,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f68d36ed5e334f99b82dc3801757e89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isMeleeable: 1
   butcherTime: 2
   butcherSound: BladeSlice
 --- !u!114 &-5848175386882574214
@@ -158,6 +163,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  initialIntegrity: 250
+  soundOnHit: 
+  damageDeflection: 0
   Armor:
     Melee: 0
     Bullet: 0
@@ -178,7 +186,6 @@ MonoBehaviour:
     Indestructable: 0
     FreezeProof: 0
   HeatResistance: 100
-  initialIntegrity: 250
 --- !u!114 &114356069699078412
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -191,6 +198,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDirty: 0
   sceneId: 0
   serverOnly: 0
   m_AssetId: 
@@ -209,7 +217,11 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0.1
   InitialDirection: 3
+  onEditorDirectionChange:
+    m_PersistentCalls:
+      m_Calls: []
   ChangeDirectionWithMatrix: 1
+  DisableSyncing: 0
 --- !u!114 &656301501147598195
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -272,8 +284,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
-  initialName: office char
+  initialName: office chair
   initialDescription: For sitting down or getting strapped onto.
+  willHighlight: 1
   exportCost: 0
   exportName: 
   exportMessage: 
@@ -291,9 +304,37 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
-  resourcesMadeOf: {fileID: 6254655335276451647, guid: ab486d104d39e584e935c8a5459a967c,
+  resourcesMadeOf: {fileID: 5770283965274354279, guid: b83b68cfa4a201748aeeece963a989c3,
     type: 3}
   howMany: 1
+--- !u!114 &4334543004684285896
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1289257713136752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62cc3ef7cd9082443aaf3c255851d15a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &-1683014087683841188
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1289257713136752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1b752b8671651846ba4fca8bf2c233a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
+  isFlippable: 0
+  flippedObject: {fileID: 0}
 --- !u!1 &1922606341189806
 GameObject:
   m_ObjectHideFlags: 0
@@ -339,6 +380,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 0
   m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 4294967295
   m_RendererPriority: 0
   m_Materials:
@@ -419,6 +461,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -441,7 +484,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -932335445
-  m_SortingLayer: 16
+  m_SortingLayer: 17
   m_SortingOrder: 0
   m_Sprite: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}

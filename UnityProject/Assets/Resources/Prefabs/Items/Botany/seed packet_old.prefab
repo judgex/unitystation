@@ -46,6 +46,7 @@ SpriteRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 0
   m_ReflectionProbeUsage: 0
+  m_RayTracingMode: 0
   m_RenderingLayerMask: 4294967295
   m_RendererPriority: 0
   m_Materials:
@@ -93,12 +94,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: db025f3627a11af4fb670ccd1e2188ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spriteData:
-    isPaletteds: 
+  NetworkThis: 1
+  SubCatalogue: []
+  PresentSpriteSet: {fileID: 11400000, guid: b4679363c2ed0fe42baa5a02f20cc240, type: 2}
   Sprites: []
-  spriteIndex: 0
   variantIndex: 0
-  SetSpriteOnStartUp: 1
+  palette: []
 --- !u!1 &1519710982558066
 GameObject:
   m_ObjectHideFlags: 0
@@ -117,10 +118,11 @@ GameObject:
   - component: {fileID: 114943451087304478}
   - component: {fileID: 114596150240161284}
   - component: {fileID: 114171556259583268}
-  - component: {fileID: 7775367136764396337}
   - component: {fileID: 1635926354344122938}
   - component: {fileID: -1649124960678938281}
+  - component: {fileID: 7775367136764396337}
   - component: {fileID: -3547164563803669629}
+  - component: {fileID: 6192722859107522757}
   m_Layer: 10
   m_Name: seed packet_old
   m_TagString: Untagged
@@ -223,6 +225,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
+  snapToGridOnStart: 1
   IsFixedMatrix: 0
 --- !u!114 &114850502447124420
 MonoBehaviour:
@@ -236,6 +239,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0f68d36ed5e334f99b82dc3801757e89, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isMeleeable: 1
   butcherTime: 2
   butcherSound: BladeSlice
 --- !u!114 &114079509811454882
@@ -314,54 +318,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b91ecbcc199f4492b9a91e820070131, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  isDirty: 0
   sceneId: 0
   serverOnly: 0
   m_AssetId: 
---- !u!114 &7775367136764396337
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1519710982558066}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: db8e8b7b55bea56498ef51fca8eaec51, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  syncMode: 0
-  syncInterval: 0.1
-  Sprite: {fileID: 6508592049166286711}
-  plantData:
-    ProduceObject: {fileID: 0}
-    Name: 
-    Plantname: 
-    Description: 
-    PacketsSprite:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
-    GrowthSprites: []
-    FullyGrownSprite:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
-    DeadSprite:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
-    WeedResistance: 0
-    WeedGrowthRate: 0
-    GrowthSpeed: 0
-    Potency: 0
-    Endurance: 0
-    Yield: 0
-    Lifespan: 0
-    PlantTrays: 
-    ReagentProduction: []
-    MutatesInTo: []
-  defaultPlantData: {fileID: 0}
-  PlantSyncString: 
 --- !u!114 &1635926354344122938
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -407,18 +367,9 @@ MonoBehaviour:
   isEVACapable: 0
   attackVerbs: []
   itemSprites:
-    LeftHand:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
-    RightHand:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
-    InventoryIcon:
-      Texture: {fileID: 0}
-      Sprites: []
-      EquippedData: {fileID: 0}
+    SpriteInventoryIcon: {fileID: 0}
+    SpriteLeftHand: {fileID: 0}
+    SpriteRightHand: {fileID: 0}
     Palette:
     - {r: 0, g: 0, b: 0, a: 0}
     - {r: 0, g: 0, b: 0, a: 0}
@@ -429,6 +380,54 @@ MonoBehaviour:
     - {r: 0, g: 0, b: 0, a: 0}
     - {r: 0, g: 0, b: 0, a: 0}
     IsPaletted: 0
+--- !u!114 &7775367136764396337
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519710982558066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: db8e8b7b55bea56498ef51fca8eaec51, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  syncMode: 0
+  syncInterval: 0.1
+  Sprite: {fileID: 6508592049166286711}
+  plantData:
+    ProduceObject: {fileID: 0}
+    Name: 
+    Plantname: 
+    Description: 
+    DeadSpriteSO: {fileID: 0}
+    FullyGrownSpriteSO: {fileID: 0}
+    GrowthSpritesSOs: []
+    WeedResistance: 0
+    WeedGrowthRate: 0
+    GrowthSpeed: 0
+    Potency: 0
+    Endurance: 0
+    Yield: 0
+    Lifespan: 0
+    PlantTrays: 
+    ReagentProduction: []
+    MutatesInToGameObject: []
+    plantEvolveStats:
+      WeedResistanceChange: 0
+      WeedGrowthRateChange: 0
+      GrowthSpeedChange: 0
+      PotencyChange: 0
+      EnduranceChange: 0
+      YieldChange: 0
+      LifespanChange: 0
+      PlantTrays: 
+      ReagentProduction: []
+      RemovePlantTrays: 
+      RemoveReagentProduction: []
+    Age: 0
+    NextGrowthStageProgress: 0
+    Health: 0
 --- !u!114 &-3547164563803669629
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -443,4 +442,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   syncMode: 0
   syncInterval: 0.1
-  spriteHandler: {fileID: 0}
+--- !u!114 &6192722859107522757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1519710982558066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62cc3ef7cd9082443aaf3c255851d15a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Atmospherics;
@@ -13,7 +14,16 @@ using Random = UnityEngine.Random;
 /// </summary>
 public class ReactionManager : MonoBehaviour
 {
-	private static readonly int PLASMA_FX_Z = -3;
+	public float n = 20;
+
+	private GameObject fireLight = null;
+
+	private Dictionary<Vector3Int, GameObject> fireLightDictionary = new Dictionary<Vector3Int, GameObject>();
+
+	public Dictionary<Vector3Int, HashSet<Gas>> fogTiles = new Dictionary<Vector3Int, HashSet<Gas>>();
+
+	public ConcurrentDictionary<Vector3Int, HashSet<GasReactions>> reactions = new ConcurrentDictionary<Vector3Int, HashSet<GasReactions>>();
+
 	private static readonly int FIRE_FX_Z = -2;
 
 	private TileChangeManager tileChangeManager;
@@ -23,8 +33,10 @@ public class ReactionManager : MonoBehaviour
 	private Dictionary<Vector3Int, MetaDataNode> hotspots;
 	private UniqueQueue<MetaDataNode> winds;
 
-	private UniqueQueue<MetaDataNode> addFog; //List of tiles to add chemcial fx to
-	private UniqueQueue<MetaDataNode> removeFog; //List of tiles to remove the chemical fx from
+	private UniqueQueue<FogEffect> addFog; //List of tiles to add chemcial fx to
+	private UniqueQueue<FogEffect> removeFog; //List of tiles to remove the chemical fx from
+
+	private UniqueQueue<ReactionData> addReaction; //List of tiles to add chemcial fx to
 
 	private List<Hotspot> hotspotsToAdd;
 	private List<Vector3Int> hotspotsToRemove;
@@ -32,7 +44,6 @@ public class ReactionManager : MonoBehaviour
 
 	private float timePassed;
 	private float timePassed2;
-	private static readonly string LogAddingWindyNode = "Adding windy node {0}, dir={1}, force={2}";
 
 	/// <summary>
 	/// reused when applying exposures to lots of tiles to avoid creating GC from
@@ -49,12 +60,19 @@ public class ReactionManager : MonoBehaviour
 		hotspots = new Dictionary<Vector3Int, MetaDataNode>();
 		winds = new UniqueQueue<MetaDataNode>();
 
-		addFog = new UniqueQueue<MetaDataNode>();
-		removeFog = new UniqueQueue<MetaDataNode>();
+		addFog = new UniqueQueue<FogEffect>();
+		removeFog = new UniqueQueue<FogEffect>();
+
+		addReaction = new UniqueQueue<ReactionData>();
 
 		hotspotsToRemove = new List<Vector3Int>();
 		hotspotsToAdd = new List<Hotspot>();
 		tilemapDamages = GetComponentsInChildren<TilemapDamage>();
+	}
+
+	private void Start()
+	{
+		fireLight = AtmosManager.Instance.fireLight;
 	}
 
 	private void Update()
@@ -62,52 +80,65 @@ public class ReactionManager : MonoBehaviour
 		timePassed += Time.deltaTime;
 		timePassed2 += Time.deltaTime;
 
+		#region wind
+
 		Profiler.BeginSample("Wind");
-		if ( timePassed2 >= 0.1 )
+
+		int count = winds.Count;
+		if (count > 0)
 		{
-			int count = winds.Count;
-			if ( count > 0 )
+			for (int i = 0; i < count; i++)
 			{
-				for ( int i = 0; i < count; i++ )
+				if (winds.TryDequeue(out var windyNode))
 				{
-					if ( winds.TryDequeue( out var windyNode ) )
+					foreach (var pushable in matrix.Get<PushPull>(windyNode.Position, true))
 					{
-						foreach ( var pushable in matrix.Get<PushPull>( windyNode.Position, true ) )
+						float correctedForce = windyNode.WindForce / (int) pushable.Pushable.Size;
+						if (correctedForce >= AtmosConstants.MinPushForce)
 						{
-							float correctedForce = windyNode.WindForce / ( int ) pushable.Pushable.Size;
-							if ( correctedForce >= AtmosConstants.MinPushForce )
+							if (pushable.Pushable.IsTileSnap)
 							{
-								if ( pushable.Pushable.IsTileSnap )
+								byte pushes = (byte) Mathf.Clamp((int) correctedForce / 10, 1, 10);
+								for (byte j = 0; j < pushes; j++)
 								{
-									byte pushes = (byte)Mathf.Clamp((int)correctedForce / 10, 1, 10);
-									for ( byte j = 0; j < pushes; j++ )
-									{
-										//converting push to world coords because winddirection is in local coords
-										pushable.QueuePush((transform.rotation * windyNode.WindDirection.To3Int()).To2Int(), Random.Range( ( float ) ( correctedForce * 0.8 ), correctedForce ) );
-									}
-								} else
-								{
-									pushable.Pushable.Nudge( new NudgeInfo
-									{
-										OriginPos = pushable.Pushable.ServerPosition,
-										Trajectory = (Vector2)windyNode.WindDirection,
-										SpinMode = SpinMode.None,
-										SpinMultiplier = 1,
-										InitialSpeed = correctedForce,
-									} );
+									//converting push to world coords because winddirection is in local coords
+									pushable.QueuePush((transform.rotation * windyNode.WindDirection.To3Int()).To2Int(),
+										Random.Range((float) (correctedForce * 0.8), correctedForce));
 								}
 							}
+							else
+							{
+								pushable.Pushable.Nudge(new NudgeInfo
+								{
+									OriginPos = pushable.Pushable.ServerPosition,
+									Trajectory = (Vector2) windyNode.WindDirection,
+									SpinMode = SpinMode.None,
+									SpinMultiplier = 1,
+									InitialSpeed = correctedForce,
+								});
+							}
 						}
-
+					}
+					windyNode.WindForce = (windyNode.WindForce * (n - 1) / n);
+					if (windyNode.WindForce >= 0.5f)
+					{
+						winds.Enqueue(windyNode);
+					}
+					else
+					{
 						windyNode.WindForce = 0;
 						windyNode.WindDirection = Vector2Int.zero;
 					}
+
 				}
 			}
-
-			timePassed2 = 0;
 		}
+
+		timePassed2 = 0;
+
 		Profiler.EndSample();
+
+		#endregion
 
 		if (timePassed < 0.5)
 		{
@@ -131,7 +162,8 @@ public class ReactionManager : MonoBehaviour
 
 							if (neighbor != null)
 							{
-								ExposeHotspot(node.Neighbors[i].Position, node.GasMix.Temperature * 0.85f, node.GasMix.Volume / 4);
+								ExposeHotspot(node.Neighbors[i].Position, node.GasMix.Temperature * 0.85f,
+									node.GasMix.Volume / 4);
 							}
 						}
 					}
@@ -152,8 +184,8 @@ public class ReactionManager : MonoBehaviour
 		foreach (var addedHotspot in hotspotsToAdd)
 		{
 			if (!hotspots.ContainsKey(addedHotspot.node.Position) &&
-				// only process the addition if it hasn't already been done, which
-				// could happen if multiple things try to add a hotspot to the same tile
+			    // only process the addition if it hasn't already been done, which
+			    // could happen if multiple things try to add a hotspot to the same tile
 			    addedHotspot.node.Hotspot == null)
 			{
 				addedHotspot.node.Hotspot = addedHotspot;
@@ -161,55 +193,133 @@ public class ReactionManager : MonoBehaviour
 				tileChangeManager.UpdateTile(
 					new Vector3Int(addedHotspot.node.Position.x, addedHotspot.node.Position.y, FIRE_FX_Z),
 					TileType.Effects, "Fire");
-			}
 
+				if(fireLightDictionary.ContainsKey(addedHotspot.node.Position)) continue;
+
+				var fireLightSpawn = Spawn.ServerPrefab(fireLight, addedHotspot.node.Position, transform);
+
+				fireLightDictionary.Add(addedHotspot.node.Position, fireLightSpawn.GameObject);
+			}
 		}
+
 		foreach (var removedHotspot in hotspotsToRemove)
 		{
 			if (hotspots.TryGetValue(removedHotspot, out var affectedNode) &&
-				// only process the removal if it hasn't already been done, which
-				// could happen if multiple things try to remove a hotspot to the same tile)
-				affectedNode.HasHotspot)
+			    // only process the removal if it hasn't already been done, which
+			    // could happen if multiple things try to remove a hotspot to the same tile)
+			    affectedNode.HasHotspot)
 			{
 				affectedNode.Hotspot = null;
 				tileChangeManager.RemoveTile(
 					new Vector3Int(affectedNode.Position.x, affectedNode.Position.y, FIRE_FX_Z),
 					LayerType.Effects, false);
 				hotspots.Remove(removedHotspot);
+
+				if(!fireLightDictionary.ContainsKey(affectedNode.Position)) continue;
+
+				var fireObject = fireLightDictionary[affectedNode.Position];
+
+				if (fireObject != null)
+				{
+					Despawn.ServerSingle(fireLightDictionary[affectedNode.Position]);
+				}
+
+				fireLightDictionary.Remove(affectedNode.Position);
 			}
 		}
+
 		hotspotsToAdd.Clear();
 		hotspotsToRemove.Clear();
 		Profiler.EndSample();
 
-		//Here we check to see if chemical fog fx needs to be applied, and if so, add them. If not, we remove them
-		int addFogCount = addFog.Count;
-		if ( addFogCount > 0 )
+		Profiler.BeginSample("GasReactions");
+
+		int gasReactionCount = addReaction.Count;
+		if (gasReactionCount > 0)
 		{
-			for ( int i = 0; i < addFogCount; i++ )
+			for (int i = gasReactionCount; i >= 0; i--)
 			{
-				if ( addFog.TryDequeue( out var addFogNode ) )
+				if (addReaction.TryDequeue(out var addReactionNode))
 				{
-					tileChangeManager.UpdateTile(
-						new Vector3Int(addFogNode.Position.x, addFogNode.Position.y, PLASMA_FX_Z),
-						TileType.Effects, "PlasmaAir");
+					var gasMix = addReactionNode.metaDataNode.GasMix;
+
+					addReactionNode.gasReaction.Reaction.React(ref gasMix, addReactionNode.metaDataNode.Position);
+
+					if (reactions.TryGetValue(addReactionNode.metaDataNode.Position, out var gasHashSet) && gasHashSet.Count == 1)
+					{
+						reactions.TryRemove(addReactionNode.metaDataNode.Position, out var value);
+						continue;
+					}
+
+					reactions[addReactionNode.metaDataNode.Position].Remove(addReactionNode.gasReaction);
 				}
 			}
 		}
 
-		//Similar to above, but for removing chemical fog fx
-		int removeFogCount = removeFog.Count;
-		if ( removeFogCount > 0 )
+		Profiler.EndSample();
+
+		#region TileOverlays
+
+		Profiler.BeginSample("FogModifyAdd");
+		//Here we check to see if chemical fog fx needs to be applied, and if so, add them. If not, we remove them
+		int addFogCount = addFog.Count;
+		if (addFogCount > 0)
 		{
-			for ( int i = 0; i < removeFogCount; i++ )
+			for (int i = 0; i < addFogCount; i++)
 			{
-				if ( removeFog.TryDequeue( out var removeFogNode ) )
+				if (addFog.TryDequeue(out var addFogNode))
 				{
-					tileChangeManager.RemoveTile(
-						new Vector3Int(removeFogNode.Position.x, removeFogNode.Position.y, PLASMA_FX_Z),  LayerType.Effects, false);
+					if (fogTiles.ContainsKey(addFogNode.metaDataNode.Position))
+					{
+						if (fogTiles[addFogNode.metaDataNode.Position].Contains(addFogNode.gas)) continue;
+
+						fogTiles[addFogNode.metaDataNode.Position].Add(addFogNode.gas); //Add it to fogTiles
+					}
+					else
+					{
+						fogTiles.Add(addFogNode.metaDataNode.Position, new HashSet<Gas>{addFogNode.gas}); //Add it to fogTiles
+					}
+
+					tileChangeManager.UpdateTile(
+						new Vector3Int(addFogNode.metaDataNode.Position.x, addFogNode.metaDataNode.Position.y, addFogNode.gas.OverlayIndex),
+						TileType.Effects, addFogNode.gas.TileName);
 				}
 			}
 		}
+
+		Profiler.EndSample();
+		Profiler.BeginSample("FogModifyRemove");
+
+		//Similar to above, but for removing chemical fog fx
+		int removeFogCount = removeFog.Count;
+		if (removeFogCount > 0)
+		{
+			for (int i = 0; i < removeFogCount; i++)
+			{
+				if (removeFog.TryDequeue(out var removeFogNode))
+				{
+					if (!fogTiles.ContainsKey(removeFogNode.metaDataNode.Position)) continue;
+
+					if (!fogTiles[removeFogNode.metaDataNode.Position].Contains(removeFogNode.gas)) continue;
+
+					tileChangeManager.RemoveTile(
+						new Vector3Int(removeFogNode.metaDataNode.Position.x, removeFogNode.metaDataNode.Position.y, removeFogNode.gas.OverlayIndex),
+						LayerType.Effects, false);
+
+					if (fogTiles[removeFogNode.metaDataNode.Position].Count == 1)
+					{
+						fogTiles.Remove(removeFogNode.metaDataNode.Position);
+						continue;
+					}
+
+					fogTiles[removeFogNode.metaDataNode.Position].Remove(removeFogNode.gas);
+				}
+			}
+		}
+
+		Profiler.EndSample();
+
+		#endregion
 
 		timePassed = 0;
 	}
@@ -217,7 +327,8 @@ public class ReactionManager : MonoBehaviour
 	/// Same as ExposeHotspot but allows providing a world position and handles the conversion
 	public void ExposeHotspotWorldPosition(Vector2Int tileWorldPosition, float temperature, float volume)
 	{
-		ExposeHotspot(MatrixManager.WorldToLocalInt(tileWorldPosition.To3Int(), MatrixManager.Get(matrix)), temperature, volume);
+		ExposeHotspot(MatrixManager.WorldToLocalInt(tileWorldPosition.To3Int(), MatrixManager.Get(matrix)), temperature,
+			volume);
 	}
 
 	private void RemoveHotspot(MetaDataNode node)
@@ -247,12 +358,14 @@ public class ReactionManager : MonoBehaviour
 			MetaDataNode node = metaDataLayer.Get(localPosition);
 			GasMix gasMix = node.GasMix;
 
-			if (gasMix.GetMoles(Gas.Plasma) > 0.5 && gasMix.GetMoles(Gas.Oxygen) > 0.5 && temperature > Reactions.PlasmaMaintainFire)
+			if (gasMix.GetMoles(Gas.Plasma) > 0.5 && gasMix.GetMoles(Gas.Oxygen) > 0.5 &&
+			    temperature > Reactions.PlasmaMaintainFire)
 			{
 				// igniting
 				//addition will be done later in Update
-				hotspotsToAdd.Add( new Hotspot(node, temperature, volume * 25));
+				hotspotsToAdd.Add(new Hotspot(node, temperature, volume * 25));
 			}
+
 			Profiler.EndSample();
 		}
 
@@ -285,7 +398,8 @@ public class ReactionManager : MonoBehaviour
 
 
 		//update fire exposure, reusing it to avoid creating GC.
-		applyExposure.Update(isSideExposure, hotspots[hotspotPosition], hotspotWorldPosition, atLocalPosition, atWorldPosition);
+		applyExposure.Update(isSideExposure, hotspots[hotspotPosition], hotspotWorldPosition, atLocalPosition,
+			atWorldPosition);
 		Profiler.EndSample();
 		if (isSideExposure)
 		{
@@ -315,6 +429,7 @@ public class ReactionManager : MonoBehaviour
 			{
 				tilemapDamage.OnExposed(applyExposure.FireExposure);
 			}
+
 			Profiler.EndSample();
 		}
 		else
@@ -327,34 +442,64 @@ public class ReactionManager : MonoBehaviour
 			{
 				tilemapDamage.OnExposed(applyExposure.FireExposure);
 			}
+
 			Profiler.EndSample();
 		}
-
 	}
 
-	public void AddWindEvent( MetaDataNode node, Vector2Int windDirection, float pressureDifference )
+	public void AddWindEvent(MetaDataNode node, Vector2Int windDirection, float pressureDifference)
 	{
-		if ( node != MetaDataNode.None && pressureDifference > AtmosConstants.MinWindForce
-		                               && windDirection != Vector2Int.zero )
+		if (node != MetaDataNode.None && pressureDifference > AtmosConstants.MinWindForce
+		                              && windDirection != Vector2Int.zero)
 		{
-			node.WindForce = pressureDifference;
-			node.WindDirection = windDirection;
-			winds.Enqueue( node );
+			if (node.WindForce == 0)
+			{
+				node.WindForce = pressureDifference;
+				node.WindDirection = windDirection;
+				winds.Enqueue(node);
+			}
+			else
+			{
+				if (n == 0)
+				{
+					n = 1;
+				}
+
+				node.WindForce = (node.WindForce * (n - 1) / n) + pressureDifference / n;
+			}
 		}
 	}
 
 	//Add tile to add fog effect queue
 	//Being called by AtmosSimulation
-	public void AddFogEvent( MetaDataNode node)
+	public void AddFogEvent(FogEffect node)
 	{
-		addFog.Enqueue( node );
+		addFog.Enqueue(node);
 	}
 
 	//Add tile to remove fog effect queue
 	//Being called by AtmosSimulation
-	public void RemoveFogEvent( MetaDataNode node)
+	public void RemoveFogEvent(FogEffect node)
 	{
-		removeFog.Enqueue( node );
+		removeFog.Enqueue(node);
+	}
+
+	//Add tile to add reaction effect queue
+	//Being called by AtmosSimulation
+	public void AddReactionEvent(ReactionData node)
+	{
+		if (reactions.TryGetValue(node.metaDataNode.Position, out var gasHastSet))
+		{
+			if(gasHastSet.Contains(node.gasReaction)) return;
+
+			gasHastSet.Add(node.gasReaction);
+		}
+		else
+		{
+			reactions.TryAdd(node.metaDataNode.Position, new HashSet<GasReactions>{node.gasReaction});
+		}
+
+		addReaction.Enqueue(node);
 	}
 
 	/// <summary>
@@ -395,5 +540,17 @@ public class ReactionManager : MonoBehaviour
 				registerTile.OnExposed(FireExposure);
 			}
 		}
+	}
+
+	public class FogEffect
+	{
+		public MetaDataNode metaDataNode;
+		public Gas gas;
+	}
+
+	public class ReactionData
+	{
+		public MetaDataNode metaDataNode;
+		public GasReactions gasReaction;
 	}
 }

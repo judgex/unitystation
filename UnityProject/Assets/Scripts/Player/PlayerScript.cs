@@ -1,8 +1,7 @@
-using System.Collections;
 using UnityEngine;
-using UnityEngine.Events;
 using Mirror;
 using System;
+using Audio.Managers;
 
 public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 {
@@ -54,6 +53,16 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 
 	public ChatIcon chatIcon { get; private set;}
 
+	/// <summary>
+	/// Serverside world position.
+	/// Outputs correct world position even if you're hidden (e.g. in a locker)
+	/// </summary>
+	public Vector3Int AssumedWorldPos => pushPull.AssumedWorldPositionServer();
+
+	/// <summary>
+	/// Serverside world position.
+	/// Returns InvalidPos if you're hidden (e.g. in a locker)
+	/// </summary>
 	public Vector3Int WorldPos => registerTile.WorldPositionServer;
 
 	/// <summary>
@@ -67,6 +76,11 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 	private Vector3IntEvent onTileReached = new Vector3IntEvent();
 	public Vector3IntEvent OnTileReached() => onTileReached;
 
+	public float RTT;
+
+	private bool isUpdateRTT;
+	private float waitTimeForRTTUpdate = 0f;
+
 	public override void OnStartClient()
 	{
 		Init();
@@ -77,6 +91,8 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 	public override void OnStartLocalPlayer()
 	{
 		Init();
+		waitTimeForRTTUpdate = 0f;
+		isUpdateRTT = true;
 	}
 
 	//You know the drill
@@ -92,6 +108,39 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 		EventManager.AddHandler(EVENT.PlayerRejoined, Init);
 		EventManager.AddHandler(EVENT.GhostSpawned, OnPlayerBecomeGhost);
 		EventManager.AddHandler(EVENT.PlayerRejoined, OnPlayerReturnedToBody);
+	}
+
+	public override void UpdateMe()
+	{
+		if (isUpdateRTT && !isServer)
+		{
+			RTTUpdate();
+		}
+	}
+
+	void RTTUpdate()
+	{
+		waitTimeForRTTUpdate += Time.deltaTime;
+		if (waitTimeForRTTUpdate > 0.5f)
+		{
+			waitTimeForRTTUpdate = 0f;
+			RTT = (float)NetworkTime.rtt;
+			if (playerHealth != null)
+			{
+				playerHealth.RTT = RTT;
+			}
+			CmdUpdateRTT(RTT);
+		}
+	}
+
+	[Command]
+	void CmdUpdateRTT(float rtt)
+	{
+		RTT = rtt;
+		if (playerHealth != null)
+		{
+			playerHealth.RTT = rtt;
+		}
 	}
 
 	/// <summary>
@@ -156,7 +205,6 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 		{
 			EnableLighting(true);
 			UIManager.ResetAllUI();
-			UIManager.DisplayManager.SetCameraFollowPos();
 			GetComponent<MouseInputController>().enabled = true;
 
 			if (!UIManager.Instance.playerListUIControl.window.activeInHierarchy)
@@ -164,7 +212,7 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 				UIManager.Instance.playerListUIControl.window.SetActive(true);
 			}
 
-			PlayerManager.SetPlayerForControl(gameObject);
+			PlayerManager.SetPlayerForControl(gameObject, PlayerSync);
 
 			if (IsGhost)
 			{
@@ -179,19 +227,15 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 			}
 			else
 			{
-
 				UIManager.LinkUISlots();
 				//play the spawn sound
-				SoundManager.Play("Ambient#");
-				SoundManager.PlayAmbience("ShipAmbience");
+				SoundAmbientManager.PlayAudio("ambigen8");
 				//Hide ghosts
 				var mask = Camera2DFollow.followControl.cam.cullingMask;
 				mask &= ~(1 << LayerMask.NameToLayer("Ghosts"));
 				Camera2DFollow.followControl.cam.cullingMask = mask;
 			}
 
-			//				Request sync to get all the latest transform data
-			new RequestSyncMessage().Send();
 			EventManager.Broadcast(EVENT.UpdateChatChannels);
 		}
 	}
@@ -224,6 +268,8 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 			return isDeadOrGhost;
 		}
 	}
+
+	public object Chat { get; internal set; }
 
 	public bool IsInReach(GameObject go, bool isServer, float interactDist = interactionDistance)
 	{
@@ -303,6 +349,7 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 		{
 			return transmitChannels;
 		}
+
 		return transmitChannels | receiveChannels;
 	}
 
@@ -337,12 +384,13 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 	}
 
 	//Tooltips inspector bar
-	public void OnHoverStart()
+	public void OnMouseEnter()
 	{
+		if (gameObject.IsAtHiddenPos()) return;
 		UIManager.SetToolTip = visibleName;
 	}
 
-	public void OnHoverEnd()
+	public void OnMouseExit()
 	{
 		UIManager.SetToolTip = "";
 	}
@@ -365,16 +413,15 @@ public class PlayerScript : ManagedNetworkBehaviour, IMatrixRotation, IAdminInfo
 
 	public string AdminInfoString()
 	{
-		var text = "";
 		if (PlayerList.Instance.IsAntag(gameObject))
 		{
 			return $"<color=yellow>Name: {characterSettings.Name}\r\n" +
-			       $"Acc: {characterSettings.username}\r\n" +
+			       $"Acc: {characterSettings.Username}\r\n" +
 			       $"Antag: True</color>";
 		}
 
 		return $"Name: {characterSettings.Name}\r\n" +
-		       $"Acc: {characterSettings.username}\r\n" +
+		       $"Acc: {characterSettings.Username}\r\n" +
 		       $"Antag: False";
 	}
 }

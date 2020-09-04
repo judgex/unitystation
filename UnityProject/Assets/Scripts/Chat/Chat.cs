@@ -1,7 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 using AdminTools;
 using Tilemaps.Behaviours.Meta;
+using DiscordWebhook;
+using DatabaseAPI;
 
 /// <summary>
 /// The Chat API
@@ -33,6 +35,8 @@ public partial class Chat : MonoBehaviour
 	//Does the ghost hear everyone or just local
 	public bool GhostHearAll { get; set; } = true;
 
+	public static bool OOCMute = false;
+
 	/// <summary>
 	/// Set the scene based chat relay at the start of every round
 	/// </summary>
@@ -43,6 +47,32 @@ public partial class Chat : MonoBehaviour
 		Instance.addChatLogServer = serverChatMethod;
 		Instance.addChatLogClient = clientChatMethod;
 		Instance.addAdminPriv = adminMethod;
+	}
+
+	public static void InvokeChatEvent(ChatEvent chatEvent)
+	{
+		var channels = chatEvent.channels;
+		string discordMessage = "";
+
+		// There could be multiple channels we need to send a message for each.
+		// We do this on the server side so that local chans can be validated correctly
+		foreach (ChatChannel channel in channels.GetFlags())
+		{
+			if (IsNamelessChan(channel) || channel == ChatChannel.None)
+			{
+				continue;
+			}
+
+			chatEvent.channels = channel;
+			Instance.addChatLogServer.Invoke(chatEvent);
+			discordMessage += $"[{channel}] ";
+		}
+
+		Instance.addChatLogServer.Invoke(chatEvent);
+		discordMessage += $"\n```css\n{chatEvent.speaker}: {chatEvent.message}\n```\n";
+
+		//Sends All Chat messages to a discord webhook
+		DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAllChatURL, discordMessage, "");
 	}
 
 	/// <summary>
@@ -60,14 +90,17 @@ public partial class Chat : MonoBehaviour
 		// This step is skipped when speaking in the OOC channel.
 		(string message, ChatModifier chatModifiers) processedMessage = (string.Empty, ChatModifier.None); // Placeholder values
 		bool isOOC = channels.HasFlag(ChatChannel.OOC);
-		if (!isOOC) processedMessage = ProcessMessage(sentByPlayer, message);
+		if (!isOOC)
+		{
+			processedMessage = ProcessMessage(sentByPlayer, message);
+		}
 
 		var chatEvent = new ChatEvent
 		{
 			message = isOOC ? message : processedMessage.message,
 			modifiers = (player == null) ? ChatModifier.None : processedMessage.chatModifiers,
 			speaker = (player == null) ? sentByPlayer.Username : player.name,
-			position = ((player == null) ? TransformState.HiddenPos : player.WorldPos),
+			position = (player == null) ? TransformState.HiddenPos : player.WorldPos,
 			channels = channels,
 			originator = sentByPlayer.GameObject
 		};
@@ -75,7 +108,26 @@ public partial class Chat : MonoBehaviour
 		if (channels.HasFlag(ChatChannel.OOC))
 		{
 			chatEvent.speaker = sentByPlayer.Username;
+
+			var isAdmin = PlayerList.Instance.IsAdmin(sentByPlayer.UserId);
+
+			if (isAdmin)
+			{
+				chatEvent.speaker = "[Admin] " + chatEvent.speaker;
+			}
+
+			if (OOCMute && !isAdmin) return;
+
 			Instance.addChatLogServer.Invoke(chatEvent);
+
+			//Sends OOC message to a discord webhook
+			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookOOCURL, message, chatEvent.speaker, ServerData.ServerConfig.DiscordWebhookOOCMentionsID);
+
+			if (!ServerData.ServerConfig.DiscordWebhookSendOOCToAllChat) return;
+
+			//Send it to All chat
+			DiscordWebhookMessage.Instance.AddWebHookMessageToQueue(DiscordWebhookURLs.DiscordWebhookAllChatURL, $"[{ChatChannel.OOC}]  {message}\n", chatEvent.speaker);
+
 			return;
 		}
 
@@ -83,6 +135,12 @@ public partial class Chat : MonoBehaviour
 		// Check if the player is allowed to talk:
 		if (player != null && player.playerHealth != null)
 		{
+			if (!player.IsDeadOrGhost && player.mind.IsMiming && !processedMessage.chatModifiers.HasFlag(ChatModifier.Emote))
+			{
+				AddWarningMsgFromServer(sentByPlayer.GameObject, "You can't talk because you made a vow of silence.");
+				return;
+			}
+
 			if (player.playerHealth.IsCrit || player.playerHealth.IsCardiacArrest)
 			{
 				if (!player.playerHealth.IsDead)
@@ -91,7 +149,7 @@ public partial class Chat : MonoBehaviour
 				}
 				else
 				{
-					channels = ChatChannel.Ghost;
+					chatEvent.channels = ChatChannel.Ghost;
 				}
 			}
 			else if (!player.playerHealth.IsDead && !player.IsGhost)
@@ -101,21 +159,34 @@ public partial class Chat : MonoBehaviour
 			}
 		}
 
-		// There could be multiple channels we need to send a message for each.
-		// We do this on the server side that local chans can be determined correctly
-		foreach (Enum value in Enum.GetValues(channels.GetType()))
+		InvokeChatEvent(chatEvent);
+	}
+
+	/// <summary>
+	/// Broadcast a comm. message to chat, by machine. Useful for e.g. AutomatedAnnouncer.
+	/// </summary>
+	/// <param name="sentByMachine">Machine broadcasting the message</param>
+	/// <param name="message">The message to broadcast.</param>
+	/// <param name="channels">The channels to broadcast on.</param>
+	/// <param name="chatModifiers">Chat modifiers to use e.g. ChatModifier.ColdlyState.</param>
+	/// <param name="broadcasterName">Optional name for the broadcaster. Pulls name from GameObject if not used.</param>
+	public static void AddCommMsgByMachineToChat(
+			GameObject sentByMachine, string message, ChatChannel channels,
+			ChatModifier chatModifiers = ChatModifier.None, string broadcasterName = default)
+	{
+		if (string.IsNullOrWhiteSpace(message)) return;
+
+		var chatEvent = new ChatEvent
 		{
-			if (channels.HasFlag((ChatChannel)value))
-			{
-				//Using HasFlag will always return true for flag at value 0 so skip it
-				if ((ChatChannel)value == ChatChannel.None) continue;
+			message = message,
+			modifiers = chatModifiers,
+			speaker = broadcasterName != default ? broadcasterName : sentByMachine.ExpensiveName(),
+			position = sentByMachine.WorldPosServer(),
+			channels = channels,
+			originator = sentByMachine
+		};
 
-				if (IsNamelessChan((ChatChannel)value)) continue;
-
-				chatEvent.channels = (ChatChannel)value;
-				Instance.addChatLogServer.Invoke(chatEvent);
-			}
-		}
+		InvokeChatEvent(chatEvent);
 	}
 
 	/// <summary>
@@ -374,7 +445,8 @@ public partial class Chat : MonoBehaviour
 	/// </summary>
 	/// <param name="message">The message to show in the chat stream</param>
 	/// <param name="worldPos">The position of the local message</param>
-	public static void AddLocalMsgToChat(string message, Vector2 worldPos, GameObject originator)
+	/// <param name="originator">The object (i.e. vending machine) that said message</param>
+	public static void AddLocalMsgToChat(string message, Vector2 worldPos, GameObject originator, string speakerName = null)
 	{
 		if (!IsServer()) return;
 		Instance.TryStopCoroutine(ref composeMessageHandle);
@@ -384,8 +456,22 @@ public partial class Chat : MonoBehaviour
 			channels = ChatChannel.Local,
 			message = message,
 			position = worldPos,
-			originator = originator
+			originator = originator,
+			speaker = speakerName
 		});
+	}
+
+	/// <summary>
+	/// For any other local messages that are not an Action or a Combat Action.
+	/// I.E for machines
+	/// Server side only
+	/// </summary>
+	/// <param name="message">The message to show in the chat stream</param>
+	/// <param name="originator">The object (i.e. vending machine) that said message</param>
+	public static void AddLocalMsgToChat(string message, GameObject originator)
+	{
+		if (!IsServer()) return;
+		AddLocalMsgToChat(message, originator.WorldPosServer(), originator);
 	}
 
 	/// <summary>

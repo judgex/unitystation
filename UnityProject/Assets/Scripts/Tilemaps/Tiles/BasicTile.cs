@@ -1,25 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using NaughtyAttributes;
+using ScriptableObjects;
 using UnityEngine;
 using UnityEngine.Serialization;
 using UnityEngine.Tilemaps;
-using Random = UnityEngine.Random;
-
-[Serializable]
-public struct TileState
-{
-	public Sprite Sprite;
-	public float Damage;
-}
 
 public abstract class BasicTile : LayerTile
 {
-	[Tooltip("What it sounds like when walked over")]
-	public Footstep WalkingSoundCategory =  Footstep.floor;
-	public BareFootstep BarefootWalkingSoundCategory = BareFootstep.floor;
-	public ClawFootstep ClawFootstepSoundCategory = ClawFootstep.floor;
-	public HeavyFootstep HeavyFootstepSoundCategory = HeavyFootstep.floor;
-	public ClownFoostep ClownFootstepSoundCategory = ClownFoostep.floor;
+	[Tooltip("What it sounds like when walked over")][ShowIf(nameof(passable))]
+	public FloorTileType floorTileType = FloorTileType.floor;
 
 	[Tooltip("Allow gases to pass through the cell this tile occupies?")]
 	[FormerlySerializedAs("AtmosPassable")]
@@ -29,62 +18,60 @@ public abstract class BasicTile : LayerTile
 	[Tooltip("Does this tile form a seal against the floor?")]
 	[FormerlySerializedAs("IsSealed")]
 	[SerializeField]
-	private bool isSealed;
+	private bool isSealed = false;
 
 	[Tooltip("Should this tile get initialized with Space gasmix at round start (e.g. asteroids)?")]
 	public bool SpawnWithNoAir;
 
-	[FormerlySerializedAs("OreCategorie")]
-	[SerializeField]
-	private OreCategory oreCategory;
-
-	public float MaxHealth;
-	public TileState[] HealthStates;
-
 	[Tooltip("Does this tile allow items / objects to pass through it?")]
 	[FormerlySerializedAs("Passable")]
 	[SerializeField]
-	private bool passable;
+	private bool passable = false;
 
 	[Tooltip("Can this tile be mined?")]
 	[FormerlySerializedAs("Mineable")]
 	[SerializeField]
-	private bool mineable;
+	private bool mineable = false;
 	/// <summary>
 	/// Can this tile be mined?
 	/// </summary>
 	public bool Mineable => mineable;
+
+	[Tooltip("Will bullets bounce from this tile?")]
+	[SerializeField] private bool doesReflectBullet = false;
+
+	public bool DoesReflectBullet => doesReflectBullet;
 
 	[Tooltip("What things are allowed to pass through this even if it is not passable?")]
 	[FormerlySerializedAs("PassableException")]
 	[SerializeField]
 	private PassableDictionary passableException = null;
 
-
 	[Tooltip("What is this tile's max health?")]
 	[FormerlySerializedAs("MaxHealth")]
 	[SerializeField]
-	private float maxHealth;
+	private float maxHealth = 0f;
+	public float MaxHealth => maxHealth;
 
-
-	[Tooltip("How does the tile change as its health changes?")]
-	[FormerlySerializedAs("HealthStates")]
-	[SerializeField]
-	private TileState[] healthStates;
-
-	[Tooltip("Resistances of this tile.")]
-	[FormerlySerializedAs("Resistances")]
-	[SerializeField]
-	private Resistances resistances = null;
-	/// <summary>
-	/// Resistances of this tile.
-	/// </summary>
-	public Resistances Resistances => resistances;
+	[Tooltip("A damage threshold the attack needs to pass in order to apply damage to this item.")]
+	public float damageDeflection = 0;
 
 	[Tooltip("Armor of this tile")]
 	[FormerlySerializedAs("Armor")]
 	[SerializeField]
-	private Armor armor = null;
+	private Armor armor = new Armor
+	{
+		Melee = 90,
+		Bullet = 90,
+		Laser = 90,
+		Energy = 90,
+		Bomb = 90,
+		Bio = 100,
+		Rad = 100,
+		Fire = 100,
+		Acid = 90
+	};
+
 	/// <summary>
 	/// Armor of this tile
 	/// </summary>
@@ -107,13 +94,22 @@ public abstract class BasicTile : LayerTile
 	public GameObject SpawnOnDeconstruct => spawnOnDeconstruct;
 
 	[Tooltip("How much of the object to spawn when it's deconstructed. Defaults to 1 if" +
-			 " an object is specified and this is 0.")]
+	         " an object is specified and this is 0.")]
 	[SerializeField]
 	private int spawnAmountOnDeconstruct = 1;
+
 	/// <summary>
 	/// How many of the object to spawn when it's deconstructed.
 	/// </summary>
 	public int SpawnAmountOnDeconstruct => SpawnOnDeconstruct == null ? 0 : Mathf.Max(1, spawnAmountOnDeconstruct);
+
+	[SerializeField] private LootOnDespawn lootOnDespawn = default;
+
+	public LootOnDespawn LootOnDespawn => lootOnDespawn;
+
+	[SerializeField] private string soundOnHit = default;
+
+	public string SoundOnHit => soundOnHit;
 
 	public override void RefreshTile(Vector3Int position, ITilemap tilemap)
 	{
@@ -150,4 +146,17 @@ public abstract class BasicTile : LayerTile
 	{
 		return IsAtmosPassable() && !isSealed;
 	}
+
+
+	//yeah,This needs to be moved out into its own class
+	public virtual bool AreUnderfloorSame( Matrix4x4 thisTransformMatrix,BasicTile basicTile, Matrix4x4 TransformMatrix)
+	{
+		if (basicTile == this)
+		{
+			return true;
+		}
+
+		return false;
+	}
 }
+

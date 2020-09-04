@@ -5,8 +5,13 @@ using Mirror;
 /// <summary>
 /// Controls an entire number spinner - a display made up of DigitSpinners.
 /// </summary>
-public class NumberSpinner : NetUIElement
+public class NumberSpinner : NetUIStringElement
 {
+
+
+	public int InitialValue = 9999;
+
+
 	public override ElementMode InteractionMode => ElementMode.ServerWrite;
 
 	public DigitSpinner Ones;
@@ -16,6 +21,8 @@ public class NumberSpinner : NetUIElement
 	//below 2 are optional - only used in the 6-digit version
 	public DigitSpinner TenThousands;
 	public DigitSpinner HundredThousands;
+
+	public IntEvent OnValueChange = new IntEvent();
 
 	/// <summary>
 	/// Invoked when the value synced between client / server is updated.
@@ -52,6 +59,8 @@ public class NumberSpinner : NetUIElement
 
 	private void Awake()
 	{
+		Value = InitialValue.ToString();
+
 		Ones.OnDigitChangeComplete.AddListener(OnOnesSpinComplete);
 		//we will jump directly to the first value we get
 		init = false;
@@ -89,7 +98,7 @@ public class NumberSpinner : NetUIElement
 				Category.UI, newValue, MaxValue);
 		}
 		//set the new value, to be propagated to clients.
-		SetValue = newValue.ToString();
+		SetValueServer(newValue.ToString());
 	}
 
 	public void DisplaySpinAdjust(int offset)
@@ -141,7 +150,7 @@ public class NumberSpinner : NetUIElement
 		{
 			HundredThousands.JumpToDigit(targetValue / 100000 % 10);
 		}
-
+		OnValueChange.Invoke(newValue);
 		return;
 
 		//NOTE: Previously tried to implement a spinning animation, but now am bypassing that stuff because it was
@@ -240,7 +249,7 @@ public class NumberSpinner : NetUIElement
 
 	public StringEvent ServerMethod;
 
-	public override void ExecuteServer() {
+	public override void ExecuteServer(ConnectedPlayer subject) {
 		ServerMethod.Invoke(Value);
 	}
 }

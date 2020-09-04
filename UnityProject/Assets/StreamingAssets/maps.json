@@ -1,1 +1,1 @@
-{"lowPopMaps":["Assets/scenes/OutpostStation.unity","Assets/scenes/PogStation.unity"],"highPopMaps":[],"highPopMinLimit":40}
+{"lowPopMaps":["FallStation", "SquareStation"], "medPopMaps":["OutpostStation", "SquareStation"], "highPopMaps":["BoxStationV1.unity"], "medPopMinLimit":15, "highPopMinLimit":30}

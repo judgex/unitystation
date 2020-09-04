@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 using Mirror;
@@ -74,14 +75,9 @@ public class OccupiableDirectionalSprite : NetworkBehaviour
 	/// </summary>
 	public PlayerScript OccupantPlayerScript => occupantPlayerScript;
 
-	public void Awake()
-	{
-		EnsureInit();
-	}
-
 	private void EnsureInit()
 	{
-		if (directional != null) return;
+		if (directional != null || gameObject == null) return;
 		directional = GetComponent<Directional>();
 		directional.OnDirectionChange.AddListener(OnDirectionChanged);
 		OnDirectionChanged(directional.CurrentDirection);
@@ -105,35 +101,52 @@ public class OccupiableDirectionalSprite : NetworkBehaviour
 
 	}
 
+	// Only runs in editor - useful for updating the sprite direction
+	// when the initial direction is altered via inspector.
+	private void OnValidate()
+	{
+		if (Application.isPlaying) return;
+		OnEditorDirectionChange();
+	}
+
+
+
 	public override void OnStartClient()
 	{
 		EnsureInit();
 		//must invoke this because SyncVar hooks are not called on client init
 		SyncOccupantNetId(occupantNetId, occupantNetId);
-		OnDirectionChanged(directional.CurrentDirection);
+		OnDirectionChanged(directional.InitialOrientation);
+	}
+
+	public override void OnStartServer()
+	{
+		EnsureInit();
+		OnDirectionChanged(directional.InitialOrientation);
+	}
+
+	public void OnEditorDirectionChange()
+	{
+		if (this == null) return;
+		if (directional == null) directional = GetComponent<Directional>();
+		SetDirectionalSprite(directional.InitialOrientation);
 	}
 
 	private void OnDirectionChanged(Orientation newDir)
 	{
-		if (newDir == Orientation.Up)
-		{
-			spriteRenderer.sprite = Up;
-		}
-		else if (newDir == Orientation.Down)
-		{
-			spriteRenderer.sprite = Down;
-		}
-		else if (newDir == Orientation.Left)
-		{
-			spriteRenderer.sprite = Left;
-		}
-		else
-		{
-			spriteRenderer.sprite = Right;
-		}
-
+		SetDirectionalSprite(newDir);
 		UpdateFrontSprite();
 		EnsureSpriteLayer();
+	}
+
+	private void SetDirectionalSprite(Orientation orientation)
+	{
+		if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+
+		if (orientation == Orientation.Up) spriteRenderer.sprite = Up;
+		else if (orientation == Orientation.Down) spriteRenderer.sprite = Down;
+		else if (orientation == Orientation.Left) spriteRenderer.sprite = Left;
+		else spriteRenderer.sprite = Right;
 	}
 
 	// Updates the sprite that's drawn over the occupant when the occupant is buckled in (e.g. the seatbelt)
@@ -211,31 +224,4 @@ public class OccupiableDirectionalSprite : NetworkBehaviour
 			}
 		}
 	}
-
-//changes the rendered sprite in editor based on the value set in Directional
-#if UNITY_EDITOR
-	private void Update()
-	{
-		if (Application.isEditor && !Application.isPlaying)
-		{
-			var dir = GetComponent<Directional>().InitialOrientation;
-			if (dir == Orientation.Up)
-			{
-				spriteRenderer.sprite = Up;
-			}
-			else if (dir == Orientation.Down)
-			{
-				spriteRenderer.sprite = Down;
-			}
-			else if (dir == Orientation.Left)
-			{
-				spriteRenderer.sprite = Left;
-			}
-			else
-			{
-				spriteRenderer.sprite = Right;
-			}
-		}
-	}
-#endif
 }

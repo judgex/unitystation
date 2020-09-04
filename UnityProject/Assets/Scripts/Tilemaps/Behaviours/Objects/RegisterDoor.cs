@@ -32,7 +32,7 @@
 			}
 		}
 
-		private void Awake()
+		protected override void Awake()
 		{
 			base.Awake();
 			GetComponent<Integrity>().OnWillDestroyServer.AddListener(OnWillDestroyServer);
@@ -56,7 +56,7 @@
 		private void OnWillDestroyServer(DestructionInfo arg0)
 		{
 			//spawn some metal for the door
-	        Spawn.ServerPrefab("Metal", WorldPosition, transform.parent, count: 2,
+	        Spawn.ServerPrefab("MetalSheet", WorldPosition, transform.parent, count: 2,
 		        scatterRadius: Spawn.DefaultScatterRadius, cancelIfImpassable: true);
 		}
 
@@ -65,16 +65,47 @@
 		{
 			if (isClosed && OneDirectionRestricted)
 			{
+
 				// OneDirectionRestricted is hardcoded to only be from the negative y position
 				Vector3Int v = Vector3Int.RoundToInt(transform.localRotation * Vector3.down);
 
 				// Returns false if player is bumping door from the restricted direction
 				var position = isServer? LocalPositionServer : LocalPositionClient;
 				var direction = to - position;
+
+				//Use Directional component if it exists
+				var tryGetDir = GetComponent<Directional>();
+				if (tryGetDir != null)
+				{
+					return CheckViaDirectional(tryGetDir, direction);
+				}
+
 				return !direction.y.Equals(v.y) || !direction.x.Equals(v.x);
 			}
 
 			return !isClosed;
+		}
+
+		bool CheckViaDirectional(Directional directional, Vector3Int dir)
+		{
+			var dir2Int = dir.To2Int();
+			switch (directional.CurrentDirection.AsEnum())
+			{
+				case OrientationEnum.Down:
+					if (dir2Int == Vector2Int.down) return false;
+					return true;
+				case OrientationEnum.Left:
+					if (dir2Int == Vector2Int.left) return false;
+					return true;
+				case OrientationEnum.Up:
+					if (dir2Int == Vector2Int.up) return false;
+					return true;
+				case OrientationEnum.Right:
+					if (dir2Int == Vector2Int.right) return false;
+					return true;
+			}
+
+			return true;
 		}
 
 		public override bool IsPassable( Vector3Int from, bool isServer )

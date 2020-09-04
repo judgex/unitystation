@@ -1,14 +1,13 @@
 ﻿using System.Collections;
 using UnityEngine;
 using Mirror;
+using Weapons;
 
 /// <summary>
 /// Informs all clients that a shot has been performed so they can display it (but they needn't
 /// perform any damage calculation, this is just displaying the shot that the server has already validated).
 /// </summary>
 public class ShootMessage : ServerMessage {
-
-	public override short MessageType => (short)MessageTypes.ShootMessage;
 
 	/// <summary>
 	/// GameObject of the player performing the shot
@@ -32,19 +31,25 @@ public class ShootMessage : ServerMessage {
 	public bool IsSuicideShot;
 
 	///To be run on client
-	public override IEnumerator Process()
+	public override void Process()
 	{
+		if (!MatrixManager.IsInitialized) return;
+
 		if (Shooter.Equals(NetId.Invalid)) {
 			//Failfast
 			Logger.LogWarning($"Shoot request invalid, processing stopped: {ToString()}", Category.Firearms);
-			yield break;
+			return;
 		}
 
-		yield return WaitFor(Shooter, Weapon);
+		//Not even spawned don't show bullets
+		if (PlayerManager.LocalPlayer == null) return;
+
+		LoadMultipleObjects(new uint[] {Shooter, Weapon});
+
 		Gun wep = NetworkObjects[1].GetComponent<Gun>();
 		if (wep == null)
 		{
-			yield break;
+			return;
 		}
 		//only needs to run on the clients other than the shooter
 		if (!wep.isServer && PlayerManager.LocalPlayer.gameObject !=  NetworkObjects[0])

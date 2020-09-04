@@ -14,10 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Base:
     Equipped:
-      Texture: {fileID: 2800000, guid: 439a50f8d1d4cf64aad27aeefb8961f6, type: 3}
+      Texture: {fileID: 2800000, guid: df9202c69d818024a8f0b38155f22164, type: 3}
       Sprites:
-      - {fileID: 21300000, guid: 439a50f8d1d4cf64aad27aeefb8961f6, type: 3}
-      EquippedData: {fileID: 0}
+      - {fileID: 21300000, guid: df9202c69d818024a8f0b38155f22164, type: 3}
+      - {fileID: 21300002, guid: df9202c69d818024a8f0b38155f22164, type: 3}
+      - {fileID: 21300004, guid: df9202c69d818024a8f0b38155f22164, type: 3}
+      - {fileID: 21300006, guid: df9202c69d818024a8f0b38155f22164, type: 3}
+      EquippedData: {fileID: 4900000, guid: 0b34744bef831f242822e3cf27ec14da, type: 3}
     InHandsLeft:
       Texture: {fileID: 2800000, guid: 9f2d784350c4e6d4fb8c6a63469cbea9, type: 3}
       Sprites:
@@ -39,6 +42,12 @@ MonoBehaviour:
       Sprites:
       - {fileID: 21300000, guid: 439a50f8d1d4cf64aad27aeefb8961f6, type: 3}
       EquippedData: {fileID: 0}
+    SpriteEquipped: {fileID: 11400000, guid: 325e099696d774a499fe2adc35b8b372, type: 2}
+    SpriteInHandsLeft: {fileID: 11400000, guid: 8cc2c4ca16865f44782875f6fc931786,
+      type: 2}
+    SpriteInHandsRight: {fileID: 11400000, guid: 4c039f078f8a62e41a9a8acda1dd4782,
+      type: 2}
+    SpriteItemIcon: {fileID: 11400000, guid: d4daefa0cfdee954f9e90f492ee59f6e, type: 2}
     Palette:
     - {r: 0, g: 0, b: 0, a: 0}
     - {r: 0, g: 0, b: 0, a: 0}
@@ -66,6 +75,10 @@ MonoBehaviour:
       Texture: {fileID: 0}
       Sprites: []
       EquippedData: {fileID: 0}
+    SpriteEquipped: {fileID: 0}
+    SpriteInHandsLeft: {fileID: 0}
+    SpriteInHandsRight: {fileID: 0}
+    SpriteItemIcon: {fileID: 0}
     Palette:
     - {r: 0, g: 0, b: 0, a: 0}
     - {r: 0, g: 0, b: 0, a: 0}
@@ -93,6 +106,10 @@ MonoBehaviour:
       Texture: {fileID: 0}
       Sprites: []
       EquippedData: {fileID: 0}
+    SpriteEquipped: {fileID: 0}
+    SpriteInHandsLeft: {fileID: 0}
+    SpriteInHandsRight: {fileID: 0}
+    SpriteItemIcon: {fileID: 0}
     Palette:
     - {r: 0, g: 0, b: 0, a: 0}
     - {r: 0, g: 0, b: 0, a: 0}

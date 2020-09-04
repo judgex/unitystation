@@ -3,84 +3,70 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Mirror;
+using Chemistry.Components;
 
 [RequireComponent(typeof(Pickupable))]
-public class FireExtinguisher : NetworkBehaviour, IServerSpawn,
+public class FireExtinguisher : NetworkBehaviour,
 	IInteractable<HandActivate>,
 	ICheckedInteractable<AimApply>
 {
-	bool safety = true;
-	public int travelDistance = 6;
-	private float travelTime => 1f / travelDistance;
-	public ReagentContainer reagentContainer;
-	public RegisterItem registerItem;
-	public Pickupable pickupable;
+	[SerializeField]
+	[Range(1, 20)]
+	private int travelDistance = 6;
 
 	[SerializeField]
-	[Range(1,50)]
-	private int reagentsPerUse = 5;
+	[Range(1, 50)]
+	private int reagentsPerUse = 1;
 
-	public SpriteRenderer spriteRenderer;
-	[SyncVar(hook = nameof(SyncSprite))] public int spriteSync;
-	public Sprite[] spriteList;
+	[SerializeField]
+	private ReagentContainer reagentContainer = default;
 
-	public override void OnStartClient()
+	private SpriteHandler spriteHandler;
+
+	private float TravelTime => 1f / travelDistance;
+
+	bool safety = true;
+	private DateTime clientLastInteract = DateTime.Now;	
+
+	private enum SpriteState
 	{
-		EnsureInit();
-		SyncSprite(spriteSync, spriteSync);
+		SafetyOn = 0,
+		SafetyOff = 1
 	}
 
 	public void Awake()
 	{
-		EnsureInit();
+		spriteHandler = GetComponentInChildren<SpriteHandler>();
 	}
 
-	private void EnsureInit()
-	{
-		if ( !pickupable )
-		{
-			pickupable = GetComponent<Pickupable>();
-		}
-	}
-
-	public void OnSpawnServer(SpawnInfo info)
-	{
-		safety = true;
-		SyncSprite(spriteSync, 0);
-	}
+	#region Interaction
 
 	public void ServerPerformInteraction(HandActivate interaction)
 	{
+		safety = !safety;
 		if (safety)
 		{
-			safety = false;
-			SyncSprite(spriteSync, 1);
+			spriteHandler.ChangeSprite((int) SpriteState.SafetyOn);
 		}
 		else
 		{
-			safety = true;
-			SyncSprite(spriteSync, 0);
+			spriteHandler.ChangeSprite((int) SpriteState.SafetyOff);
 		}
 	}
 
 	public bool WillInteract(AimApply interaction, NetworkSide side)
 	{
-		if (interaction.MouseButtonState == MouseButtonState.PRESS)
-		{
-			return true;
-		}
-
-		return false;
+		if (!DefaultWillInteract.Default(interaction, side)
+		    || (!IsCoolDown() && !isServer)) return false;
+		return true;
 	}
 
 	public void ServerPerformInteraction(AimApply interaction)
 	{
-		if ( reagentContainer.CurrentCapacity < reagentsPerUse || safety )
-		{
-			return;
-		}
+		if (reagentContainer.ReagentMixTotal < reagentsPerUse || safety) return;
 
-		Vector2	startPos = gameObject.AssumedWorldPosServer();
+
+		Vector2 startPos = gameObject.AssumedWorldPosServer();
 		Vector2 targetPos = interaction.WorldPositionTarget.To2Int();
 		List<Vector3Int> positionList = CheckPassableTiles(startPos, targetPos);
 		StartCoroutine(Fire(positionList));
@@ -93,13 +79,14 @@ public class FireExtinguisher : NetworkBehaviour, IServerSpawn,
 		positionList = CheckPassableTiles(points[0], points[1]);
 		StartCoroutine(Fire(positionList));
 
-		Effect.PlayParticleDirectional( this.gameObject, interaction.TargetVector );
+		Effect.PlayParticleDirectional(this.gameObject, interaction.TargetVector);
 
 		SoundManager.PlayNetworkedAtPos("Extinguish", startPos, 1, sourceObj: interaction.Performer);
-		reagentContainer.TakeReagents(reagentsPerUse);
 
 		interaction.Performer.Pushable()?.NewtonianMove((-interaction.TargetVector).NormalizeToInt());
 	}
+
+	#endregion Interaction;
 
 	/// <summary>
 	/// Returns the vectors that form a line parallel to the arguments
@@ -123,7 +110,7 @@ public class FireExtinguisher : NetworkBehaviour, IServerSpawn,
 
 		paralelStart = new Vector2(Mathf.RoundToInt(paralelStart.x), Mathf.RoundToInt(paralelStart.y));
 		paralelTarget = new Vector2(Mathf.RoundToInt(paralelTarget.x), Mathf.RoundToInt(paralelTarget.y));
-		var points = new Vector2[] {paralelStart, paralelTarget};
+		var points = new Vector2[] { paralelStart, paralelTarget };
 		return points;
 	}
 
@@ -132,37 +119,39 @@ public class FireExtinguisher : NetworkBehaviour, IServerSpawn,
 		for (int i = 0; i < positionList.Count; i++)
 		{
 			ExtinguishTile(positionList[i]);
-			yield return WaitFor.Seconds(travelTime);
+			yield return WaitFor.Seconds(TravelTime);
 		}
 	}
 
-	void ExtinguishTile(Vector3Int worldPos)
+	private void ExtinguishTile(Vector3Int worldPos)
 	{
-		//it actually uses remaining contents to react with world
-		//instead of the sprayed ones. not sure if this is right
-		MatrixManager.ReagentReact(reagentContainer.Contents, worldPos);
+		reagentContainer.Spill(worldPos, reagentsPerUse);
 	}
 
-	public void SyncSprite(int oldValue, int value)
-	{
-		EnsureInit();
-		spriteSync = value;
-		spriteRenderer.sprite = spriteList[spriteSync];
-
-		pickupable.RefreshUISlotImage();
-	}
 	private List<Vector3Int> CheckPassableTiles(Vector2 startPos, Vector2 targetPos)
 	{
 		List<Vector3Int> passableTiles = new List<Vector3Int>();
 		List<Vector3Int> positionList = MatrixManager.GetTiles(startPos, targetPos, travelDistance);
 		for (int i = 0; i < positionList.Count; i++)
 		{
-			if (!MatrixManager.IsAtmosPassableAt(positionList[i],true))
+			if (!MatrixManager.IsAtmosPassableAt(positionList[i], true))
 			{
 				return passableTiles;
 			}
 			passableTiles.Add(positionList[i]);
 		}
 		return passableTiles;
+	}
+
+	private bool IsCoolDown()
+	{
+		var totalSeconds = (DateTime.Now - clientLastInteract).TotalSeconds;
+		if (totalSeconds < 1f)
+		{
+			return false;
+		}
+
+		clientLastInteract = DateTime.Now;
+		return true;
 	}
 }
